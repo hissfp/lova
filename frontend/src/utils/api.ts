@@ -1,0 +1,90 @@
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
+let authToken: string | null = null;
+
+export const setAuthToken = (token: string | null) => {
+  authToken = token;
+};
+
+export const getAuthToken = () => authToken;
+
+export const wsUrl = (): string =>
+  `${API_URL!.replace(/^http/, "ws")}/api/ws?token=${authToken}`;
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const res = await fetch(`${API_URL}/api${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (typeof data.detail === "string") detail = data.detail;
+    } catch {
+      // keep default detail
+    }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>("GET", path),
+  post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
+  put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
+};
+
+export interface User {
+  id: string;
+  email?: string;
+  name: string;
+  bio?: string | null;
+  country?: string | null;
+  avatar_url?: string | null;
+  native_language?: string | null;
+  learning_language?: string | null;
+  proficiency?: string | null;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  partner: User | null;
+  last_message: { text: string; sender_id: string; created_at: string } | null;
+  unread: number;
+  updated_at: string;
+}
+
+export interface Moment {
+  id: string;
+  author: User | null;
+  text: string;
+  like_count: number;
+  liked_by_me: boolean;
+  comment_count: number;
+  created_at: string;
+  comments?: MomentComment[];
+}
+
+export interface MomentComment {
+  id: string;
+  author: User | null;
+  text: string;
+  created_at: string;
+}

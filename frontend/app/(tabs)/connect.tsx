@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Avatar } from "@/src/components/Avatar";
 import { FlagIcon } from "@/src/components/FlagIcon";
 import { LanguagePair } from "@/src/components/LanguagePair";
+import { countryToCode } from "@/src/constants/countries";
 import { LANGUAGES, langName } from "@/src/constants/languages";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -165,17 +166,17 @@ export default function Connect() {
               style={styles.card}
               onPress={() => router.push(`/user/${item.id}`)}
             >
-              <Avatar name={item.name} url={item.avatar_url} size={56} />
+              <Avatar
+                name={item.name}
+                url={item.avatar_url}
+                size={56}
+                flagCode={countryToCode(item.country)}
+              />
               <View style={styles.cardBody}>
                 <View style={styles.cardTop}>
                   <Text style={styles.cardName} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  {item.country && (
-                    <Text style={styles.cardCountry} numberOfLines={1}>
-                      {item.country}
-                    </Text>
-                  )}
                 </View>
                 <LanguagePair
                   native={item.native_language}
@@ -188,13 +189,21 @@ export default function Connect() {
                   </Text>
                 ) : null}
               </View>
-              <Pressable
-                testID={`partner-message-btn-${item.id}`}
-                style={styles.msgBtn}
-                onPress={() => openChat(item)}
-              >
-                <Ionicons name="chatbubble" size={18} color={colors.onBrand} />
-              </Pressable>
+              <View style={styles.cardRight}>
+                {item.is_online && (
+                  <View
+                    testID={`partner-online-${item.id}`}
+                    style={styles.onlineDot}
+                  />
+                )}
+                <Pressable
+                  testID={`partner-message-btn-${item.id}`}
+                  style={styles.msgBtn}
+                  onPress={() => openChat(item)}
+                >
+                  <Ionicons name="chatbubble" size={18} color={colors.onBrand} />
+                </Pressable>
+              </View>
             </Pressable>
           )}
         />
@@ -296,10 +305,17 @@ const makeStyles = (colors: ThemeColors) =>
     color: colors.onSurface,
     flexShrink: 1,
   },
-  cardCountry: {
-    fontFamily: fonts.text,
-    fontSize: 12,
-    color: colors.onSurfaceSecondary,
+  cardRight: {
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  onlineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#22c55e",
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   cardBio: {
     fontFamily: fonts.text,

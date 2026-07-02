@@ -53,6 +53,7 @@ export interface User {
   native_language?: string | null;
   learning_language?: string | null;
   proficiency?: string | null;
+  is_online?: boolean;
 }
 
 export interface Message {

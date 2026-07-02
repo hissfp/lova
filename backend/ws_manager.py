@@ -31,5 +31,11 @@ class ConnectionManager:
         for user_id in user_ids:
             await self.send_to_user(user_id, event)
 
+    def is_online(self, user_id: str) -> bool:
+        return bool(self.connections.get(user_id))
+
+    def online_user_ids(self) -> set[str]:
+        return {uid for uid, socks in self.connections.items() if socks}
+
 
 manager = ConnectionManager()

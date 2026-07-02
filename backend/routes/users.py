@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from auth_utils import CurrentUser
 from db import users_col
 from models import UserUpdate, user_card, user_public
+from ws_manager import manager
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -43,7 +44,13 @@ async def list_partners(
     if search:
         query["name"] = {"$regex": search, "$options": "i"}
     docs = await users_col.find(query).sort("created_at", -1).to_list(100)
-    return [user_card(d) for d in docs]
+    online_ids = manager.online_user_ids()
+    cards = []
+    for d in docs:
+        card = user_card(d)
+        card["is_online"] = d["_id"] in online_ids
+        cards.append(card)
+    return cards
 
 
 @router.get("/{user_id}")
@@ -53,4 +60,5 @@ async def get_user(user_id: str, current_user: CurrentUser):
         raise HTTPException(status_code=404, detail="User not found")
     public = user_public(doc)
     public.pop("email", None)
+    public["is_online"] = manager.is_online(user_id)
     return public

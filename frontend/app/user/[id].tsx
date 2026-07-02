@@ -104,6 +104,11 @@ export default function UserProfile() {
               <GenderBadge gender={profile.gender} />
               {profile.is_vip && <VipBadge tier={profile.vip_tier} />}
             </View>
+            {profile.username ? (
+              <Text style={styles.country} testID="user-username">
+                @{profile.username}
+              </Text>
+            ) : null}
             {profile.country && (
               <Text style={styles.country}>
                 {profile.country}

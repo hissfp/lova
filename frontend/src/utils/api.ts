@@ -59,6 +59,8 @@ export interface User {
   age?: number | null;
   interests?: string[];
   gender?: "male" | "female" | null;
+  username?: string | null;
+  username_changed_at?: string | null;
   is_vip?: boolean;
   is_admin?: boolean;
   vip_tier?: "weekly" | "monthly" | "lifetime" | null;

@@ -8,6 +8,7 @@ import {
   Alert,
   LayoutAnimation,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -16,6 +17,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Avatar } from "@/src/components/Avatar";
@@ -60,8 +62,29 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [usernameModal, setUsernameModal] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameBusy, setUsernameBusy] = useState(false);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [gender, setGender] = useState(user?.gender || null);
+
+  const saveUsername = async () => {
+    if (usernameBusy) return;
+    setUsernameBusy(true);
+    setUsernameError(null);
+    try {
+      const updated = await api.put<User>("/users/me/username", {
+        username: usernameDraft.trim().toLowerCase(),
+      });
+      setUser(updated);
+      setUsernameModal(false);
+    } catch (e) {
+      setUsernameError(e instanceof Error ? e.message : "Could not change username");
+    } finally {
+      setUsernameBusy(false);
+    }
+  };
   const [privacy, setPrivacy] = useState<Record<string, boolean>>(
     user?.privacy || {},
   );
@@ -283,6 +306,18 @@ export default function Profile() {
               {user.is_vip && <VipBadge tier={user.vip_tier} />}
             </View>
           )}
+          <Pressable
+            testID="username-row"
+            style={styles.usernamePill}
+            onPress={() => {
+              setUsernameDraft(user.username || "");
+              setUsernameError(null);
+              setUsernameModal(true);
+            }}
+          >
+            <Text style={styles.usernameText}>@{user.username || "set username"}</Text>
+            <Ionicons name="pencil" size={11} color={colors.onBrandTertiary} />
+          </Pressable>
           <Text style={styles.email}>{user.email}</Text>
           <LanguagePair
             native={editing ? nativeLang : user.native_language}
@@ -366,17 +401,25 @@ export default function Profile() {
         ) : (
           <Pressable
             testID="vip-upgrade-btn"
-            style={styles.vipUpgradeBtn}
             onPress={upgradeVip}
           >
-            <Ionicons name="diamond" size={20} color="#FFF" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.vipUpgradeTitle}>Upgrade to VIP</Text>
-              <Text style={styles.vipUpgradeSub}>
-                Buy with coins in the Marketplace
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#FFF" />
+            <LinearGradient
+              colors={["#F59E0B", "#D97706"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.vipUpgradeBtn}
+            >
+              <View style={styles.vipIconWrap}>
+                <Ionicons name="diamond" size={20} color="#FFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vipUpgradeTitle}>Upgrade to VIP</Text>
+                <Text style={styles.vipUpgradeSub}>
+                  Buy with coins in the Marketplace
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#FFF" />
+            </LinearGradient>
           </Pressable>
         )}
 
@@ -948,6 +991,59 @@ export default function Profile() {
           <Text style={styles.logoutText}>Log Out</Text>
         </Pressable>
       </ScrollView>
+
+      <Modal
+        visible={usernameModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setUsernameModal(false)}
+      >
+        <View style={styles.unBackdrop}>
+          <View style={styles.unCard}>
+            <Text style={styles.unTitle}>Change username</Text>
+            <Text style={styles.unSub}>
+              Your unique ID. Can be changed once a month. 3–20 characters:
+              lowercase letters, numbers, _ or .
+            </Text>
+            <TextInput
+              testID="username-input"
+              style={styles.input}
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={usernameDraft}
+              onChangeText={setUsernameDraft}
+              placeholder="username"
+              placeholderTextColor={colors.onSurfaceSecondary}
+            />
+            {usernameError ? (
+              <Text style={styles.unError} testID="username-error">
+                {usernameError}
+              </Text>
+            ) : null}
+            <View style={{ flexDirection: "row", gap: spacing.md }}>
+              <Pressable
+                testID="username-cancel-btn"
+                style={styles.unCancel}
+                onPress={() => setUsernameModal(false)}
+              >
+                <Text style={styles.unCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                testID="username-save-btn"
+                style={styles.unSave}
+                onPress={saveUsername}
+                disabled={usernameBusy}
+              >
+                {usernameBusy ? (
+                  <ActivityIndicator size="small" color={colors.onBrand} />
+                ) : (
+                  <Text style={styles.unSaveText}>Save</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -986,7 +1082,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     profileCard: {
       backgroundColor: colors.surface,
-      borderRadius: radius.md,
+      borderRadius: radius.lg,
       padding: spacing.xl,
       alignItems: "center",
       gap: spacing.md,
@@ -1034,10 +1130,10 @@ const makeStyles = (colors: ThemeColors) =>
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
-      backgroundColor: "#F59E0B",
-      borderRadius: radius.md,
+      borderRadius: radius.lg,
       padding: spacing.lg,
       marginTop: spacing.md,
+      ...shadow.card,
     },
     vipUpgradeTitle: {
       fontFamily: fonts.textBold,
@@ -1083,8 +1179,86 @@ const makeStyles = (colors: ThemeColors) =>
     },
     name: {
       fontFamily: fonts.display,
-      fontSize: 22,
+      fontSize: 24,
       color: colors.onSurface,
+    },
+    usernamePill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      backgroundColor: colors.brandTertiary,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 4,
+      marginTop: -spacing.xs,
+    },
+    usernameText: {
+      fontFamily: fonts.textSemi,
+      fontSize: 13,
+      color: colors.onBrandTertiary,
+    },
+    unBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(15, 23, 42, 0.5)",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.xl,
+    },
+    unCard: {
+      width: "100%",
+      maxWidth: 360,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.xl,
+      gap: spacing.md,
+    },
+    unTitle: {
+      fontFamily: fonts.display,
+      fontSize: 19,
+      color: colors.onSurface,
+    },
+    unSub: {
+      fontFamily: fonts.text,
+      fontSize: 12,
+      lineHeight: 17,
+      color: colors.onSurfaceSecondary,
+    },
+    unError: {
+      fontFamily: fonts.textSemi,
+      fontSize: 12,
+      color: colors.error,
+    },
+    unCancel: {
+      flex: 1,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      backgroundColor: colors.surfaceSecondary,
+    },
+    unCancelText: {
+      fontFamily: fonts.textBold,
+      fontSize: 14,
+      color: colors.onSurfaceSecondary,
+    },
+    unSave: {
+      flex: 1,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      backgroundColor: colors.brand,
+    },
+    unSaveText: {
+      fontFamily: fonts.textBold,
+      fontSize: 14,
+      color: colors.onBrand,
+    },
+    vipIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(255,255,255,0.22)",
+      alignItems: "center",
+      justifyContent: "center",
     },
     email: {
       fontFamily: fonts.text,
@@ -1117,7 +1291,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     statValue: {
       fontFamily: fonts.display,
-      fontSize: 18,
+      fontSize: 20,
       color: colors.onSurface,
     },
     statLabel: {
@@ -1141,7 +1315,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     section: {
       backgroundColor: colors.surface,
-      borderRadius: radius.md,
+      borderRadius: radius.lg,
       padding: spacing.lg,
       gap: spacing.sm,
       ...shadow.card,

@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +25,10 @@ const SECTIONS: { type: MarketItem["type"]; title: string; sub: string }[] = [
   { type: "frame", title: "Avatar Rings", sub: "Beautiful ring around your avatar — 7 days" },
 ];
 
+const TOPUP_AMOUNTS = [100, 500, 1000, 2000];
+
 export default function Market() {
+  const router = useRouter();
   const { setUser } = useAuth();
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
@@ -32,6 +36,8 @@ export default function Market() {
   const [items, setItems] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<string | null>(null);
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [toppingUp, setToppingUp] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -71,17 +77,46 @@ export default function Market() {
     }
   };
 
+  const topup = async (amount: number) => {
+    if (toppingUp) return;
+    setToppingUp(amount);
+    try {
+      const res = await api.post<{ coins: number }>("/market/topup", { amount });
+      setCoins(res.coins);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTopupOpen(false);
+    } catch (e) {
+      Alert.alert("Top Up", e instanceof Error ? e.message : "Could not top up.");
+    } finally {
+      setToppingUp(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]} testID="market-screen">
       <View style={styles.header}>
+        <Pressable
+          testID="market-back-btn"
+          onPress={() => router.back()}
+          style={styles.backBtn}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.onSurface} />
+        </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Marketplace</Text>
           <Text style={styles.headerSub}>Spend coins on VIP, badges & rings</Text>
         </View>
-        <View style={styles.wallet} testID="wallet-balance">
+        <Pressable
+          style={styles.wallet}
+          testID="wallet-balance"
+          onPress={() => setTopupOpen(true)}
+        >
           <Text style={styles.walletCoin}>🪙</Text>
           <Text style={styles.walletText}>{coins}</Text>
-        </View>
+          <View style={styles.walletPlus}>
+            <Ionicons name="add" size={12} color={colors.onBrand} />
+          </View>
+        </Pressable>
       </View>
       {loading ? (
         <View style={styles.center}>
@@ -132,6 +167,50 @@ export default function Market() {
           ))}
         </ScrollView>
       )}
+
+      <Modal
+        visible={topupOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTopupOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Top Up Coins</Text>
+              <Pressable
+                testID="topup-close-btn"
+                onPress={() => setTopupOpen(false)}
+              >
+                <Ionicons name="close" size={24} color={colors.onSurfaceSecondary} />
+              </Pressable>
+            </View>
+            <View style={styles.demoNote}>
+              <Ionicons name="information-circle" size={16} color={colors.brand} />
+              <Text style={styles.demoNoteText}>
+                Demo mode — coins are added instantly, no payment needed.
+              </Text>
+            </View>
+            <View style={styles.amountGrid}>
+              {TOPUP_AMOUNTS.map((amount) => (
+                <Pressable
+                  key={amount}
+                  testID={`topup-${amount}`}
+                  style={styles.amountBtn}
+                  onPress={() => topup(amount)}
+                  disabled={toppingUp !== null}
+                >
+                  {toppingUp === amount ? (
+                    <ActivityIndicator size="small" color={colors.onBrand} />
+                  ) : (
+                    <Text style={styles.amountText}>🪙 {amount}</Text>
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -142,9 +221,16 @@ const makeStyles = (colors: ThemeColors) =>
     header: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: spacing.xl,
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      alignItems: "center",
+      justifyContent: "center",
     },
     headerTitle: { fontFamily: fonts.display, fontSize: 24, color: colors.onSurface },
     headerSub: {
@@ -165,6 +251,57 @@ const makeStyles = (colors: ThemeColors) =>
     },
     walletCoin: { fontSize: 16 },
     walletText: { fontFamily: fonts.display, fontSize: 16, color: colors.onSurface },
+    walletPlus: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: colors.brand,
+      alignItems: "center",
+      justifyContent: "center",
+      marginLeft: 2,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(15, 23, 42, 0.45)",
+      justifyContent: "flex-end",
+    },
+    modalCard: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: radius.lg,
+      borderTopRightRadius: radius.lg,
+      padding: spacing.xl,
+      gap: spacing.lg,
+      paddingBottom: spacing.xxl,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    modalTitle: { fontFamily: fonts.display, fontSize: 20, color: colors.onSurface },
+    demoNote: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.brandTertiary,
+      borderRadius: radius.sm,
+      padding: spacing.md,
+    },
+    demoNoteText: {
+      flex: 1,
+      fontFamily: fonts.textSemi,
+      fontSize: 12,
+      color: colors.onBrandTertiary,
+    },
+    amountGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+    amountBtn: {
+      width: "47.5%",
+      backgroundColor: colors.brand,
+      borderRadius: radius.md,
+      paddingVertical: spacing.lg,
+      alignItems: "center",
+    },
+    amountText: { fontFamily: fonts.textBold, fontSize: 16, color: colors.onBrand },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
     list: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
     sectionTitle: {

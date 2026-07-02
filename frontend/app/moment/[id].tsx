@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Avatar } from "@/src/components/Avatar";
 import { VipBadge } from "@/src/components/Badges";
+import { LikersRow } from "@/src/components/LikersRow";
 import { countryToCode } from "@/src/constants/countries";
 import { useTheme } from "@/src/context/ThemeContext";
 import { fonts, radius, shadow, spacing, ThemeColors } from "@/src/theme";
@@ -208,6 +209,11 @@ export default function MomentDetail() {
                     <Text style={styles.actionText}>{moment.comment_count}</Text>
                   </View>
                 </View>
+                <LikersRow
+                  momentId={moment.id}
+                  likeCount={moment.like_count}
+                  likers={moment.likers}
+                />
                 <Text style={styles.commentsTitle}>Comments</Text>
               </View>
             }

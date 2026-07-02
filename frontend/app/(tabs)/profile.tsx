@@ -62,7 +62,6 @@ export default function Profile() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [gender, setGender] = useState(user?.gender || null);
-  const [vipBusy, setVipBusy] = useState(false);
   const [privacy, setPrivacy] = useState<Record<string, boolean>>(
     user?.privacy || {},
   );
@@ -138,19 +137,7 @@ export default function Profile() {
     toggleList(learningLangs, setLearningLangs, code, learnCap);
   };
 
-  const upgradeVip = async () => {
-    if (vipBusy) return;
-    setVipBusy(true);
-    try {
-      const updated = await api.post<User>("/users/me/vip");
-      setUser(updated);
-      Alert.alert("VIP", "Welcome to VIP! You can now learn up to 3 languages.");
-    } catch {
-      Alert.alert("VIP", "Could not upgrade. Try again.");
-    } finally {
-      setVipBusy(false);
-    }
-  };
+  const upgradeVip = () => router.push("/market");
 
   const togglePrivacy = async (key: string) => {
     const next = { ...privacy, [key]: !(privacy[key] ?? true) };
@@ -381,24 +368,41 @@ export default function Profile() {
             testID="vip-upgrade-btn"
             style={styles.vipUpgradeBtn}
             onPress={upgradeVip}
-            disabled={vipBusy}
           >
             <Ionicons name="diamond" size={20} color="#FFF" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.vipUpgradeTitle}>Upgrade to VIP — Free</Text>
+              <Text style={styles.vipUpgradeTitle}>Upgrade to VIP</Text>
               <Text style={styles.vipUpgradeSub}>
-                3 learning languages · unlimited chats · VIP badge
+                Buy with coins in the Marketplace
               </Text>
             </View>
-            {vipBusy ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Ionicons name="chevron-forward" size={18} color="#FFF" />
-            )}
+            <Ionicons name="chevron-forward" size={18} color="#FFF" />
           </Pressable>
         )}
 
         <Text style={styles.groupLabel}>Profile details</Text>
+        <View style={styles.section}>
+          <Pressable
+            testID="profile-market-row"
+            style={styles.settingRow}
+            onPress={() => router.push("/market")}
+          >
+            <View style={styles.settingIcon}>
+              <Ionicons name="bag-handle" size={18} color={colors.brand} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.settingTitle}>Marketplace</Text>
+              <Text style={styles.settingSub}>
+                VIP, badges & avatar rings · 🪙 {user.coins ?? 0} coins
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={colors.onSurfaceSecondary}
+            />
+          </Pressable>
+        </View>
         <View style={styles.section}>
           <Pressable
             testID="profile-views-row"

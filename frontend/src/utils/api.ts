@@ -105,6 +105,7 @@ export interface Moment {
   image_url?: string | null;
   like_count: number;
   liked_by_me: boolean;
+  likers?: User[];
   comment_count: number;
   created_at: string;
   comments?: MomentComment[];

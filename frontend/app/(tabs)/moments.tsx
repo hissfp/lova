@@ -21,7 +21,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Avatar } from "@/src/components/Avatar";
+import { VipBadge } from "@/src/components/Badges";
 import { FlagIcon } from "@/src/components/FlagIcon";
+import { LikersRow } from "@/src/components/LikersRow";
 import { countryToCode } from "@/src/constants/countries";
 import { useTheme } from "@/src/context/ThemeContext";
 import { fonts, radius, shadow, spacing, ThemeColors } from "@/src/theme";
@@ -192,6 +194,7 @@ export default function Moments() {
                     size={42}
                     flagCode={countryToCode(item.author?.country)}
                     online={item.author?.is_online}
+                    frameColor={item.author?.active_frame?.color}
                   />
                 </Pressable>
                 <View style={{ flex: 1 }}>
@@ -199,10 +202,20 @@ export default function Moments() {
                     <Text style={styles.authorName}>
                       {item.author?.name || "Unknown"}
                     </Text>
-                    <FlagIcon code={item.author?.native_language} size={14} />
+                    {item.author?.active_badge?.emoji ? (
+                      <Text style={{ fontSize: 12 }}>
+                        {item.author.active_badge.emoji}
+                      </Text>
+                    ) : null}
+                    {item.author?.is_vip ? (
+                      <VipBadge small tier={item.author?.vip_tier} />
+                    ) : null}
+                  </View>
+                  <View style={styles.langRow}>
+                    <FlagIcon code={item.author?.native_language} size={13} />
                     <Ionicons
                       name="arrow-forward"
-                      size={10}
+                      size={9}
                       color={colors.onSurfaceSecondary}
                     />
                     {(item.author?.learning_languages?.length
@@ -213,10 +226,12 @@ export default function Moments() {
                     )
                       .slice(0, 3)
                       .map((c) => (
-                        <FlagIcon key={c} code={c} size={14} />
+                        <FlagIcon key={c} code={c} size={13} />
                       ))}
+                    <Text style={styles.cardTime}>
+                      {" "}· {timeAgo(item.created_at)}
+                    </Text>
                   </View>
-                  <Text style={styles.cardTime}>{timeAgo(item.created_at)}</Text>
                 </View>
               </View>
               {item.text ? <Text style={styles.cardText}>{item.text}</Text> : null}
@@ -255,6 +270,11 @@ export default function Moments() {
                   <Text style={styles.actionText}>{item.comment_count}</Text>
                 </Pressable>
               </View>
+              <LikersRow
+                momentId={item.id}
+                likeCount={item.like_count}
+                likers={item.likers}
+              />
             </Pressable>
           )}
         />
@@ -417,6 +437,12 @@ const makeStyles = (colors: ThemeColors) =>
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs + 2,
+  },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: 2,
   },
   authorName: {
     fontFamily: fonts.displaySemi,

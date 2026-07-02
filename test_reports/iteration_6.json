@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration-6 (Marketplace moved out of tab bar + Profile marketplace card + demo coin top-up + moments likers row + VIP badge next to author name) fully verified end-to-end. BACKEND: 12/12 new pytest cases in /app/backend/tests/test_iteration6_features.py all green — POST /api/market/topup with 100/500/1000/2000 adds coins & persists (verified via subsequent GET /api/market); invalid amounts 250 & 0 → 400; unauthenticated → 401; GET /api/moments embeds 'likers' array per moment (≤6 users each with id/name/avatar_url/country); GET /api/moments/{id} detail also embeds likers + comments; GET /api/moments/{id}/likes returns richer user cards (id/name/avatar_url/country) for ALL likers; unknown moment on both /moments/{id} and /moments/{id}/likes → 404; market catalog regression still returns 11+ items with vip_weekly/monthly/lifetime, buy with bad item → 404. FRONTEND (mobile 390x844, demo@demo.com login): (a) Tab bar reduced to exactly 5 tabs: tab-chats, tab-connect, tab-moments, tab-voice, tab-profile — 'tab-market' completely absent ✔. (b) Profile → 'profile-market-row' card renders with '🪙 4700 coins' subtitle (VIP status banner shown since demo IS VIP, so vip-upgrade-btn correctly hidden — non-VIP path verified via code: profile.tsx L140 `upgradeVip = () => router.push('/market')`). Tap card → market-screen loads with market-back-btn + wallet-balance ✔. (c) Wallet tap opens Top Up sheet — demo notice ('Demo mode — coins are added instantly…') visible + all 4 amount buttons testID topup-100/500/1000/2000 + topup-close-btn present. Tap topup-500 → wallet updates 4700 → 5200 in-place, modal closes ✔. Back button returns to profile and Marketplace row now shows '🪙 5200 coins' (state synced via AuthContext setUser + reload) ✔. (d) Moments feed: VIP badge renders next to 'Demo User' name (VipBadge small), language flags moved to a SECOND line below the name with time (langRow: US flag → EN/ES/JP flags · 13 minutes ago) matching spec ✔. Likers row (testID moment-likers-<id>) rendered on 13 moments — small overlapping avatars with country flag stack + heart icon + 'N like(s)' + chevron. Tap opens 'Liked by' bottom sheet listing all likers (avatar+flag+name+VIP badge for VIP users e.g. Mei Lin VIP). Tap liker-row-<userId> navigates to /user/{id} correctly ✔. (e) Moment detail page /moment/{id} ALSO renders same LikersRow (testID moment-likers-<id> present on detail screen) ✔. (f) Regression: login, connect list (Rada/Luca/Hana/Lucas/Amélie with VIP), moments feed, notifications bell (5), tab switching all working. No red screens. Only carry-over warning: RN Web props.pointerEvents deprecation (Avatar.tsx L92 — from prior iteration).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Avatar (pointerEvents prop)", "issue": "Carry-over from iter 1–5: RN Web still warns 'props.pointerEvents is deprecated. Use style.pointerEvents'. Reference: /app/frontend/src/components/Avatar.tsx:92 — migrate to style={{ pointerEvents: 'none' }}."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration6_features.py",
+    "/app/test_reports/pytest/iteration6.xml"
+  ],
+  "action_items": [
+    "(LOW carry-over) Migrate /app/frontend/src/components/Avatar.tsx L92 pointerEvents=\"none\" prop → style={{ pointerEvents: 'none' }} to silence RN Web deprecation warning on every screen load.",
+    "(HYGIENE) Demo user coins drifted 4700 → 5200 during topup test; also demo user has an old 'TEST scrollable moment iter5' + several TEST_topup_* pytest users. Consider running seed script to reset if desired."
+  ],
+  "critical_code_review_comments": [
+    "backend/routes/market.py TOPUP_AMOUNTS set {100,500,1000,2000} correctly rejects anything else with 400; no negative-value edge (Pydantic accepts 0/negative, but not-in-set catches them). Idempotent DB update via $set. ✔",
+    "backend/routes/moments.py moment_public embeds first 6 likers with compact fields (id/name/avatar_url/country) — good size vs full user_card. list_likers separately returns FULL user cards with is_online/is_vip via _card_with_presence(apply_privacy). Sorting preserves like order. ✔",
+    "frontend/app/market.tsx cleanly consolidates topup modal + buy grid; wallet Pressable calls setTopupOpen(true) — good UX pattern; buy() also calls setUser(res.user) to sync AuthContext (e.g. is_vip flips after buying VIP). ✔",
+    "frontend/src/components/LikersRow.tsx uses lazy load pattern — initial render shows compact stack, /moments/{id}/likes fetched only when sheet opens. Passes momentId + likeCount + likers. Guards on empty (!likeCount || !likers?.length → null). Router.push /user/{item.id} on tap. ✔",
+    "frontend/app/(tabs)/profile.tsx upgradeVip now correctly routes to /market (line 140); no more free VIP upgrade UI. Non-VIP path was not visually verified (demo IS VIP) but code path is unambiguous. ✔",
+    "frontend/app/(tabs)/moments.tsx author header restructure: authorRow (name + badge emoji + VipBadge) then langRow (flags + time) on new line — matches spec. ✔"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration6_features.py (NEW — 12 tests covering topup valid/invalid/auth + likers embed on list+detail + /likes endpoint + 404s + market regression)",
+    "/app/test_reports/pytest/iteration6.xml (NEW — pytest JUnit XML)",
+    "/app/test_reports/iteration_6.json (this report)"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 iteration-6 tests). Legacy 3 pre-existing failures from iter3/4 unchanged, unrelated to iter-6.",
+    "frontend": "100% on all iteration-6 flows: tab bar (5 tabs, no market), profile-market-row navigation, market-back-btn, wallet-balance + topup-{100,500,1000,2000} + demo notice, wallet delta 4700→5200 in-place update, moments-likers row on feed + detail, Liked-by sheet with liker-row navigation to /user/{id}, VIP badge next-to-name + flags-on-second-line author header."
+  },
+  "seed_data_creation": "3 TEST_topup users NOT created (topup test used existing demo user). Demo user coins increased 4700 → 5200 via 500 topup during frontend Playwright test, then further via backend pytest (100+1000+2000 topups + one 500). Final demo balance is much higher than seed 1000 — main agent may reset seed if a clean 1000-coin baseline is required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Env: EXPO_PUBLIC_BACKEND_URL (not EXPO_BACKEND_URL). Login testIDs: auth-email-input, auth-password-input, auth-submit-btn (NOT login-*). Landing page redirects to auth screen when not logged in — no need to click 'I already have an account' on this build. Tab bar has 5 tabs (chats/connect/moments/voice/profile), NO market tab. To reach market, tap profile-market-row on profile tab, or vip-upgrade-btn (non-VIP users only). Market screen testIDs: market-screen, market-back-btn, wallet-balance (opens Top Up modal), topup-{100,500,1000,2000}, topup-close-btn, market-buy-{id} / market-active-{id}. Demo user is VIP, so vip-upgrade-btn NEVER renders for demo@demo.com — use a fresh non-VIP account to test that path. Moments: moment-card-{id}, moment-author-avatar-{id}, moment-like-btn-{id}, moment-comment-btn-{id}, moment-likers-{momentId} (only if like_count>0), liker-row-{userId} (inside Liked-by sheet), likers-close-btn. LikersRow lazy-loads /moments/{id}/likes on sheet open. Backend embeds first 6 likers in each moment; full list at GET /api/moments/{id}/likes. Topup requires exact amount in {100,500,1000,2000} — anything else → 400.",
+  "rca_of_issue": "No bugs found in iteration-6. All 5 new capabilities (tab-bar reorg, profile marketplace card, standalone market screen with back button, coin top-up demo, moments likers row + VIP badge next to name + flags on second line) work correctly end-to-end. Only pre-existing carry-over: Avatar.tsx pointerEvents prop deprecation warning (RN Web) — cosmetic, no user impact."
+}

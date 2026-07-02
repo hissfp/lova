@@ -32,6 +32,13 @@ class BuyRequest(BaseModel):
     item_id: str
 
 
+TOPUP_AMOUNTS = {100, 500, 1000, 2000}
+
+
+class TopupRequest(BaseModel):
+    amount: int
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -95,3 +102,13 @@ async def buy_item(body: BuyRequest, current_user: CurrentUser):
     await users_col.update_one({"_id": current_user["_id"]}, {"$set": updates})
     current_user.update(updates)
     return {"coins": updates["coins"], "user": user_public(current_user)}
+
+
+@router.post("/topup")
+async def topup(body: TopupRequest, current_user: CurrentUser):
+    """Demo top-up — adds coins instantly (real payments come later)."""
+    if body.amount not in TOPUP_AMOUNTS:
+        raise HTTPException(status_code=400, detail="Invalid top-up amount")
+    coins = current_user.get("coins", 0) + body.amount
+    await users_col.update_one({"_id": current_user["_id"]}, {"$set": {"coins": coins}})
+    return {"coins": coins}

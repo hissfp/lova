@@ -47,6 +47,18 @@ def _card_with_presence(author: dict | None) -> dict | None:
 async def moment_public(doc: dict, viewer_id: str) -> dict:
     author = await users_col.find_one({"_id": doc["user_id"]})
     likes = doc.get("likes", [])
+    likers = []
+    if likes:
+        liker_docs = await users_col.find({"_id": {"$in": likes[:6]}}).to_list(6)
+        likers = [
+            {
+                "id": u["_id"],
+                "name": u.get("name"),
+                "avatar_url": u.get("avatar_url"),
+                "country": u.get("country"),
+            }
+            for u in liker_docs
+        ]
     return {
         "id": doc["_id"],
         "author": _card_with_presence(author),
@@ -54,6 +66,7 @@ async def moment_public(doc: dict, viewer_id: str) -> dict:
         "image_url": f"/api/media/{doc['image_id']}" if doc.get("image_id") else None,
         "like_count": len(likes),
         "liked_by_me": viewer_id in likes,
+        "likers": likers,
         "comment_count": doc.get("comment_count", 0),
         "created_at": doc["created_at"],
     }
@@ -120,6 +133,20 @@ async def get_moment(moment_id: str, current_user: CurrentUser):
         comments.append(comment_public(c, author))
     moment["comments"] = comments
     return moment
+
+
+@router.get("/{moment_id}/likes")
+async def list_likers(moment_id: str, current_user: CurrentUser):
+    doc = await moments_col.find_one({"_id": moment_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Moment not found")
+    likes = doc.get("likes", [])
+    if not likes:
+        return []
+    users = await users_col.find({"_id": {"$in": likes}}).to_list(500)
+    order = {uid: i for i, uid in enumerate(likes)}
+    users.sort(key=lambda u: order.get(u["_id"], 0))
+    return [_card_with_presence(u) for u in users]
 
 
 @router.post("/{moment_id}/like")

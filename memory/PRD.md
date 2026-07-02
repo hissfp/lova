@@ -78,3 +78,16 @@
 - Test credentials: /app/memory/test_credentials.md (demo@demo.com / Demo1234!)
 - User writes in Bengali — reply in Bengali
 - app.json has photo/mic permissions (iOS infoPlist + Android permissions)
+
+## Iterations 5–7 (this session — all tested & passing)
+✅ Market: standalone /market screen (removed from tab bar), opened via Marketplace card on Profile; VIP 7d/1m/lifetime, badges, frames (incl. ANIMATED frames: frame_rainbow, frame_neon w/ color-cycling reanimated rings); DEMO coin top-up (POST /api/market/topup, amounts 100/500/1000/2000)
+✅ Moment detail: collapsing header (scroll → author avatar+name in topbar); likers row (overlapped avatars+flags) + "Liked by" sheet (GET /api/moments/{id}/likes); translate buttons on posts (feed+detail); VIP badge next to names, languages on 2nd line
+✅ Translation: FREE Google endpoint (translate.googleapis.com) w/ LLM fallback; free users 3/day (configurable), VIP unlimited; target = user's native_language code
+✅ VIP perks: visitors list VIP-only (free = count + lock UI), room hosting free 1/day, new-chat caps free 10/day / VIP 25/day (mutual follows exempt)
+✅ Search: /search screen (name + native/learning/gender/online filters via extended GET /users/partners); Connect search bar collapses to topbar icon on scroll
+✅ Chat 3-dot menu: view profile, mute (skips unread inc), hide their moments (feed filter), clear history (DELETE /chats/{id}/messages), block/unblock (403 enforcement)
+✅ Voice rooms: animated SpeakingBars equalizer + pulsing green ring (Avatar isSpeaking); Avatar `frame` prop (was frameColor) renders static/animated rings
+✅ Redesigned 1:1 call UI: full-screen gradient, PulseRing ripples, labeled accept/decline/mute/end, timer pill
+✅ ADMIN DASHBOARD: secret web URL /admin-x7k2p9, admin@lingua.app/Admin1234! (seeded idempotently at startup); stats, user mgmt (ban→login 403, restrict→post/send 403, VIP grant/revoke, set coins, delete), market price overrides+disable (market_config col), moments moderation, app limits config (app_config col, applied live)
+✅ Keyboard UX: react-native-keyboard-controller 1.18.5, KeyboardProvider at root, KAV swapped in chat/moment/room ("translate-with-padding") + auth/onboarding/moments-composer/voice
+✅ Tests: iteration 5/6 reports pass; iteration 7 pytest 20/20 (tests/test_iteration7_features.py)

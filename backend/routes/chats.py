@@ -171,16 +171,15 @@ async def send_message(conversation_id: str, body: MessageCreate, current_user: 
     }
     await messages_col.insert_one(doc)
     msg = message_public(doc)
-    await conversations_col.update_one(
-        {"_id": conversation_id},
-        {
-            "$set": {
-                "last_message": {"text": body.text, "sender_id": current_user["_id"], "created_at": now},
-                "updated_at": now,
-            },
-            "$inc": {f"unread.{partner_id}": 1},
+    text_update: dict = {
+        "$set": {
+            "last_message": {"text": body.text, "sender_id": current_user["_id"], "created_at": now},
+            "updated_at": now,
         },
-    )
+    }
+    if not conv.get("muted", {}).get(partner_id):
+        text_update["$inc"] = {f"unread.{partner_id}": 1}
+    await conversations_col.update_one({"_id": conversation_id}, text_update)
     await manager.send_to_user(
         partner_id,
         {
@@ -191,6 +190,30 @@ async def send_message(conversation_id: str, body: MessageCreate, current_user: 
         },
     )
     return msg
+
+
+@router.post("/{conversation_id}/mute")
+async def toggle_mute(conversation_id: str, current_user: CurrentUser):
+    """Toggle message notifications (unread badge) from this conversation."""
+    conv = await get_owned_conversation(conversation_id, current_user["_id"])
+    muted = bool(conv.get("muted", {}).get(current_user["_id"]))
+    await conversations_col.update_one(
+        {"_id": conversation_id},
+        {"$set": {f"muted.{current_user['_id']}": not muted}},
+    )
+    return {"muted": not muted}
+
+
+@router.delete("/{conversation_id}/messages")
+async def clear_history(conversation_id: str, current_user: CurrentUser):
+    """Clear all messages in the conversation."""
+    await get_owned_conversation(conversation_id, current_user["_id"])
+    await messages_col.delete_many({"conversation_id": conversation_id})
+    await conversations_col.update_one(
+        {"_id": conversation_id},
+        {"$set": {"last_message": None, "unread": {}}},
+    )
+    return {"ok": True}
 
 
 @router.post("/{conversation_id}/voice", status_code=201)

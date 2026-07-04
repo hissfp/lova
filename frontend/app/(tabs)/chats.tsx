@@ -107,7 +107,7 @@ export default function Chats() {
             onPress={() => onShortcut(s)}
           >
             <View style={[styles.shortcutIcon, { backgroundColor: s.color }]}>
-              <Ionicons name={s.icon} size={22} color="#FFFFFF" />
+              <Ionicons name={s.icon} size={20} color="#FFFFFF" />
             </View>
             <Text style={styles.shortcutLabel} numberOfLines={1}>
               {s.label}
@@ -154,7 +154,7 @@ export default function Chats() {
           style={styles.headerIconBtn}
           onPress={() => router.push("/(tabs)/profile")}
         >
-          <Ionicons name="menu" size={26} color={colors.onSurface} />
+          <Ionicons name="menu" size={24} color={colors.onSurface} />
         </Pressable>
         <Pressable
           testID="chats-vip-badge"
@@ -172,7 +172,7 @@ export default function Chats() {
           style={styles.headerIconBtn}
           onPress={() => router.push("/(tabs)/connect")}
         >
-          <Ionicons name="add" size={28} color={colors.onSurface} />
+          <Ionicons name="add" size={24} color={colors.onSurface} />
         </Pressable>
       </View>
 
@@ -346,13 +346,13 @@ const makeStyles = (colors: ThemeColors) =>
     },
     shortcut: {
       alignItems: "center",
-      width: 62,
+      width: 56,
       gap: 6,
     },
     shortcutIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
+      width: 46,
+      height: 46,
+      borderRadius: 23,
       alignItems: "center",
       justifyContent: "center",
     },

@@ -214,7 +214,7 @@ export default function UserProfile() {
               style={styles.coverIconBtn}
               onPress={() => router.back()}
             >
-              <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
             </Pressable>
             {isSelf ? (
               <View style={styles.coverIconBtn} />
@@ -236,7 +236,7 @@ export default function UserProfile() {
             <Avatar
               name={profile.name}
               url={profile.avatar_url}
-              size={96}
+              size={84}
               flagCode={countryToCode(profile.country)}
               frame={profile.active_frame}
             />
@@ -308,7 +308,7 @@ export default function UserProfile() {
             <LangCol code={profile.native_language} accent />
             <Ionicons
               name="swap-horizontal"
-              size={20}
+              size={18}
               color={colors.onSurfaceSecondary}
               style={{ marginHorizontal: spacing.md }}
             />
@@ -537,17 +537,17 @@ export default function UserProfile() {
           {tab === "achievements" && (
             <View style={styles.achRow}>
               <View style={styles.achCard}>
-                <Ionicons name="flame" size={26} color={colors.warning} />
+                <Ionicons name="flame" size={22} color={colors.warning} />
                 <Text style={styles.achValue}>{profile.streak_count ?? 0}</Text>
                 <Text style={styles.achLabel}>Day Streak</Text>
               </View>
               <View style={styles.achCard}>
-                <Ionicons name="calendar" size={26} color={colors.success} />
+                <Ionicons name="calendar" size={22} color={colors.success} />
                 <Text style={styles.achValue}>{daysJoined}</Text>
                 <Text style={styles.achLabel}>Days Member</Text>
               </View>
               <View style={styles.achCard}>
-                <Ionicons name="diamond" size={26} color={colors.brand} />
+                <Ionicons name="diamond" size={22} color={colors.brand} />
                 <Text style={styles.achValue}>{profile.is_vip ? "VIP" : "Free"}</Text>
                 <Text style={styles.achLabel}>Status</Text>
               </View>
@@ -595,7 +595,7 @@ export default function UserProfile() {
               style={styles.giftBtn}
               onPress={() => Alert.alert("Gifts", "Sending gifts is coming soon!")}
             >
-              <Ionicons name="gift" size={22} color="#FFFFFF" />
+              <Ionicons name="gift" size={20} color="#FFFFFF" />
             </Pressable>
           </>
         )}
@@ -615,7 +615,7 @@ const makeStyles = (colors: ThemeColors) =>
       justifyContent: "center",
     },
     coverWrap: {
-      height: 200,
+      height: 176,
       backgroundColor: "#6D5AE8",
       overflow: "hidden",
     },
@@ -642,17 +642,17 @@ const makeStyles = (colors: ThemeColors) =>
       alignItems: "flex-start",
       justifyContent: "space-between",
       paddingHorizontal: spacing.lg,
-      marginTop: -48,
+      marginTop: -42,
     },
     avatarWrap: {
       borderWidth: 3,
       borderColor: colors.surface,
-      borderRadius: 54,
+      borderRadius: 48,
     },
     avatarRight: {
       alignItems: "flex-end",
       gap: spacing.sm,
-      marginTop: 52,
+      marginTop: 46,
     },
     timePill: {
       backgroundColor: colors.brand,
@@ -691,7 +691,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     name: {
       fontFamily: fonts.display,
-      fontSize: 26,
+      fontSize: 22,
       color: colors.onSurface,
       flexShrink: 1,
     },
@@ -796,8 +796,8 @@ const makeStyles = (colors: ThemeColors) =>
     bio: {
       flex: 1,
       fontFamily: fonts.text,
-      fontSize: 16,
-      lineHeight: 24,
+      fontSize: 15,
+      lineHeight: 22,
       color: colors.onSurface,
     },
     translateChip: {
@@ -997,9 +997,9 @@ const makeStyles = (colors: ThemeColors) =>
       color: "#FFFFFF",
     },
     giftBtn: {
-      width: 54,
-      height: 54,
-      borderRadius: 27,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: "#EC4899",
       alignItems: "center",
       justifyContent: "center",

@@ -248,7 +248,7 @@ export default function Profile() {
             <Avatar
               name={user.name}
               url={user.avatar_url}
-              size={72}
+              size={64}
               flagCode={countryToCode(user.country)}
               frame={user.active_frame}
             />
@@ -313,7 +313,7 @@ export default function Profile() {
         {/* Streak + Visitors */}
         <View style={styles.duoRow}>
           <View style={styles.duoCard} testID="profile-streak-stat">
-            <Ionicons name="flame" size={26} color={colors.warning} />
+            <Ionicons name="flame" size={22} color={colors.warning} />
             <View>
               <Text style={styles.duoValue}>{user.streak_count ?? 0}</Text>
               <Text style={styles.duoLabel}>Day Streak</Text>
@@ -324,7 +324,7 @@ export default function Profile() {
             style={styles.duoCard}
             onPress={() => router.push("/visitors")}
           >
-            <Ionicons name="eye" size={26} color={colors.brand} />
+            <Ionicons name="eye" size={22} color={colors.brand} />
             <View>
               <Text style={styles.duoValue}>{visitorCount ?? 0}</Text>
               <Text style={styles.duoLabel}>Visitors</Text>
@@ -403,7 +403,7 @@ export default function Profile() {
               onPress={() => router.push(f.route as never)}
             >
               <View style={[styles.gridIcon, { backgroundColor: f.color }]}>
-                <Ionicons name={f.icon} size={24} color="#FFFFFF" />
+                <Ionicons name={f.icon} size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.gridLabel} numberOfLines={1}>
                 {f.label}
@@ -779,7 +779,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     name: {
       fontFamily: fonts.display,
-      fontSize: 22,
+      fontSize: 20,
       color: colors.onSurface,
       flexShrink: 1,
     },
@@ -834,7 +834,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     duoValue: {
       fontFamily: fonts.display,
-      fontSize: 20,
+      fontSize: 18,
       color: colors.onSurface,
     },
     duoLabel: {
@@ -967,9 +967,9 @@ const makeStyles = (colors: ThemeColors) =>
       paddingVertical: spacing.md,
     },
     gridIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 18,
+      width: 46,
+      height: 46,
+      borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
     },

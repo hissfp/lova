@@ -585,7 +585,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container} edges={["top", "bottom"]} testID="chat-screen">
       <View style={styles.header}>
         <Pressable testID="chat-back-btn" onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={26} color={colors.onSurface} />
+          <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
         </Pressable>
         {partner && (
           <>

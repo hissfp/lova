@@ -392,7 +392,7 @@ export default function EditProfile() {
     >
       {icon ? (
         <View style={[styles.rowIcon, { backgroundColor: iconBg }]}>
-          <Ionicons name={icon} size={20} color={iconColor} />
+          <Ionicons name={icon} size={18} color={iconColor} />
         </View>
       ) : null}
       <View style={{ flex: 1 }}>
@@ -469,7 +469,7 @@ export default function EditProfile() {
         {/* Avatar */}
         <View style={styles.avatarWrap}>
           <View>
-            <Avatar name={user.name} url={user.avatar_url} size={104} />
+            <Avatar name={user.name} url={user.avatar_url} size={88} />
             <Pressable
               testID="edit-avatar-btn"
               style={styles.avatarCamBtn}
@@ -918,7 +918,7 @@ const makeStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surfaceSecondary,
     },
     coverWrap: {
-      height: 210,
+      height: 184,
       backgroundColor: "#6D5AE8",
       overflow: "hidden",
     },
@@ -950,7 +950,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     avatarWrap: {
       alignItems: "center",
-      marginTop: -52,
+      marginTop: -46,
     },
     avatarCamBtn: {
       position: "absolute",
@@ -967,7 +967,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     sectionHeader: {
       fontFamily: fonts.display,
-      fontSize: 20,
+      fontSize: 18,
       color: colors.onSurface,
       marginTop: spacing.xl,
       marginBottom: spacing.sm,
@@ -992,9 +992,9 @@ const makeStyles = (colors: ThemeColors) =>
       borderBottomColor: colors.divider,
     },
     rowIcon: {
-      width: 42,
-      height: 42,
-      borderRadius: 12,
+      width: 38,
+      height: 38,
+      borderRadius: 11,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1006,7 +1006,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     rowValue: {
       fontFamily: fonts.textBold,
-      fontSize: 17,
+      fontSize: 16,
       color: colors.onSurface,
     },
     rowPlaceholder: {

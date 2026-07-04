@@ -177,7 +177,7 @@ export default function Connect() {
           <Avatar
             name={item.name}
             url={item.avatar_url}
-            size={60}
+            size={54}
             flagCode={countryToCode(item.country)}
             online={item.is_online}
             frame={item.active_frame}
@@ -286,14 +286,14 @@ export default function Connect() {
             style={styles.headerIconBtn}
             onPress={() => router.push("/market")}
           >
-            <Ionicons name="flash" size={22} color="#EC4899" />
+            <Ionicons name="flash" size={20} color="#EC4899" />
           </Pressable>
           <Pressable
             testID="connect-filter-btn"
             style={styles.headerIconBtn}
             onPress={() => router.push("/search")}
           >
-            <Ionicons name="options" size={22} color={colors.onSurface} />
+            <Ionicons name="options" size={20} color={colors.onSurface} />
           </Pressable>
         </View>
       </View>
@@ -503,7 +503,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     headerTitle: {
       fontFamily: fonts.display,
-      fontSize: 20,
+      fontSize: 18,
       color: colors.onSurface,
     },
     headerActions: {
@@ -615,7 +615,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     cardName: {
       fontFamily: fonts.display,
-      fontSize: 20,
+      fontSize: 18,
       color: colors.onSurface,
       flexShrink: 1,
     },

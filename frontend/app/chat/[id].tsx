@@ -1417,9 +1417,9 @@ const makeStyles = (colors: ThemeColors) =>
     inputPill: {
       flex: 1,
       backgroundColor: colors.surfaceSecondary,
-      borderRadius: 28,
-      paddingHorizontal: spacing.xl,
-      minHeight: 54,
+      borderRadius: 22,
+      paddingHorizontal: spacing.lg,
+      minHeight: 42,
       justifyContent: "center",
     },
     inlineActions: {
@@ -1462,10 +1462,10 @@ const makeStyles = (colors: ThemeColors) =>
     input: {
       flex: 1,
       fontFamily: fonts.text,
-      fontSize: 17,
+      fontSize: 15,
       color: colors.onSurface,
-      maxHeight: 120,
-      paddingVertical: Platform.OS === "web" ? 14 : 10,
+      maxHeight: 110,
+      paddingVertical: Platform.OS === "web" ? 8 : 6,
     },
     sendBtn: {
       width: 42,

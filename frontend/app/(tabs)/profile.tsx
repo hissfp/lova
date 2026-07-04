@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -12,18 +13,17 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Avatar } from "@/src/components/Avatar";
 import { GenderBadge, VipBadge } from "@/src/components/Badges";
 import { FlagIcon } from "@/src/components/FlagIcon";
-import { LanguagePair } from "@/src/components/LanguagePair";
 import { countryToCode } from "@/src/constants/countries";
 import { INTERESTS, MAX_INTERESTS } from "@/src/constants/interests";
 import {
@@ -36,12 +36,33 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { fonts, radius, shadow, spacing, ThemeColors } from "@/src/theme";
 import { api, User } from "@/src/utils/api";
 
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+const FEATURES: {
+  key: string;
+  label: string;
+  icon: IconName;
+  color: string;
+  route: string;
+}[] = [
+  { key: "connect", label: "Connect", icon: "people", color: "#10B981", route: "/(tabs)/connect" },
+  { key: "moments", label: "Moments", icon: "planet", color: "#8B5CF6", route: "/(tabs)/moments" },
+  { key: "voice", label: "Voice Rooms", icon: "mic", color: "#0EA5E9", route: "/(tabs)/voice" },
+  { key: "chats", label: "Chats", icon: "chatbubbles", color: "#EC4899", route: "/(tabs)/chats" },
+  { key: "market", label: "Marketplace", icon: "bag-handle", color: "#F59E0B", route: "/market" },
+  { key: "search", label: "Search", icon: "search", color: "#06B6D4", route: "/search" },
+  { key: "visitors", label: "Visitors", icon: "eye", color: "#EF4444", route: "/visitors" },
+  { key: "alerts", label: "Notifications", icon: "notifications", color: "#6366F1", route: "/notifications" },
+];
+
 export default function Profile() {
   const { user, setUser, logout } = useAuth();
   const { colors, mode, toggleMode } = useTheme();
   const router = useRouter();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
+
   const [editing, setEditing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [bio, setBio] = useState(user?.bio || "");
   const [nativeLang, setNativeLang] = useState(user?.native_language || null);
@@ -65,23 +86,7 @@ export default function Profile() {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameBusy, setUsernameBusy] = useState(false);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
-
-  const saveUsername = async () => {
-    if (usernameBusy) return;
-    setUsernameBusy(true);
-    setUsernameError(null);
-    try {
-      const updated = await api.put<User>("/users/me/username", {
-        username: usernameDraft.trim().toLowerCase(),
-      });
-      setUser(updated);
-      setUsernameModal(false);
-    } catch (e) {
-      setUsernameError(e instanceof Error ? e.message : "Could not change username");
-    } finally {
-      setUsernameBusy(false);
-    }
-  };
+  const [momentsCount, setMomentsCount] = useState<number | null>(null);
   const [privacy, setPrivacy] = useState<Record<string, boolean>>(
     user?.privacy || {},
   );
@@ -95,6 +100,10 @@ export default function Profile() {
       api
         .get<{ count: number }>("/users/me/visitors")
         .then((d) => setVisitorCount(d.count))
+        .catch(() => {});
+      api
+        .get<{ count: number }>("/moments/mine/count")
+        .then((d) => setMomentsCount(d.count))
         .catch(() => {});
       api
         .get<User>("/auth/me")
@@ -117,11 +126,29 @@ export default function Profile() {
     }, [setUser]),
   );
 
+  const syncEditState = useCallback(() => {
+    if (!user) return;
+    setName(user.name || "");
+    setBio(user.bio || "");
+    setNativeLang(user.native_language || null);
+    setTeachLangs(user.teach_languages || []);
+    setLearningLangs(
+      user.learning_languages?.length
+        ? user.learning_languages
+        : user.learning_language
+          ? [user.learning_language]
+          : [],
+    );
+    setProficiency(user.proficiency || null);
+    setInterests(user.interests || []);
+  }, [user]);
+
   if (!user) return null;
 
   const daysMember = user.created_at
     ? Math.max(1, dayjs().diff(dayjs(user.created_at), "day") + 1)
     : 1;
+  const learnCap = user?.is_vip ? 3 : 1;
 
   const toggleList = (
     list: string[],
@@ -140,8 +167,6 @@ export default function Profile() {
     setExpanded((prev) => (prev === key ? null : key));
   };
 
-  const learnCap = user?.is_vip ? 3 : 1;
-
   const toggleLearning = (code: string) => {
     if (
       !learningLangs.includes(code) &&
@@ -157,6 +182,12 @@ export default function Profile() {
     toggleList(learningLangs, setLearningLangs, code, learnCap);
   };
 
+  const openEdit = () => {
+    syncEditState();
+    setExpanded("about");
+    setEditing(true);
+  };
+
   const upgradeVip = () => router.push("/market");
 
   const togglePrivacy = async (key: string) => {
@@ -167,6 +198,36 @@ export default function Profile() {
       setUser(updated);
     } catch {
       setPrivacy(privacy);
+    }
+  };
+
+  const onShare = async () => {
+    try {
+      await Share.share({
+        message:
+          "I'm learning languages on LinguaConnect — chat with native speakers, get AI translations and make friends worldwide. Join me!",
+      });
+    } catch {
+      // user dismissed
+    }
+  };
+
+  const saveUsername = async () => {
+    if (usernameBusy) return;
+    setUsernameBusy(true);
+    setUsernameError(null);
+    try {
+      const updated = await api.put<User>("/users/me/username", {
+        username: usernameDraft.trim().toLowerCase(),
+      });
+      setUser(updated);
+      setUsernameModal(false);
+    } catch (e) {
+      setUsernameError(
+        e instanceof Error ? e.message : "Could not change username",
+      );
+    } finally {
+      setUsernameBusy(false);
     }
   };
 
@@ -185,7 +246,10 @@ export default function Profile() {
             ],
           );
         } else {
-          Alert.alert("Photos", "Photo access is needed to set your profile photo.");
+          Alert.alert(
+            "Photos",
+            "Photo access is needed to set your profile photo.",
+          );
         }
         return;
       }
@@ -229,44 +293,93 @@ export default function Profile() {
       setUser(updated);
       setEditing(false);
     } catch {
-      // stay in edit mode for retry
+      // stay in edit modal for retry
     } finally {
       setSaving(false);
     }
   };
 
   const doLogout = async () => {
+    setSettingsOpen(false);
     await logout();
     router.replace("/");
   };
 
+  const learningNames =
+    (user.learning_languages?.length
+      ? user.learning_languages
+      : user.learning_language
+        ? [user.learning_language]
+        : []
+    )
+      .map((c) => langName(c))
+      .join(", ") || "Not set";
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]} testID="profile-screen">
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Me</Text>
+    <SafeAreaView
+      style={styles.container}
+      edges={["top"]}
+      testID="profile-screen"
+    >
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <Pressable style={styles.coinPill} onPress={() => router.push("/market")}>
+          <View style={styles.coinDot}>
+            <Text style={styles.coinDotText}>HT</Text>
+          </View>
+          <Text style={styles.coinCount}>{user.coins ?? 0}</Text>
+        </Pressable>
+        <View style={styles.topActions}>
           <Pressable
-            testID={editing ? "profile-save-btn" : "profile-edit-btn"}
-            onPress={() => (editing ? save() : setEditing(true))}
-            style={styles.editBtn}
-            disabled={saving}
+            testID="share-btn"
+            style={styles.iconBtn}
+            onPress={onShare}
           >
-            {saving ? (
-              <ActivityIndicator size="small" color={colors.brand} />
-            ) : (
-              <Text style={styles.editBtnText}>
-                {editing ? "Save" : "Edit Profile"}
-              </Text>
-            )}
+            <Ionicons name="share-outline" size={20} color={colors.onSurface} />
+          </Pressable>
+          <Pressable
+            testID="settings-btn"
+            style={styles.iconBtn}
+            onPress={() => setSettingsOpen(true)}
+          >
+            <Ionicons name="settings-sharp" size={20} color={colors.onSurface} />
           </Pressable>
         </View>
+      </View>
 
-        <View style={styles.profileCard}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Green promo banner */}
+        {!user.is_vip && (
+          <Pressable testID="promo-banner" onPress={upgradeVip}>
+            <LinearGradient
+              colors={["#16A34A", "#065F46"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.promoBanner}
+            >
+              <Ionicons name="diamond" size={16} color="#FDE68A" />
+              <Text style={styles.promoText}>VIP 30% OFF · 3 Days Only</Text>
+              <View style={styles.promoViewBtn}>
+                <Text style={styles.promoViewText}>View</Text>
+              </View>
+            </LinearGradient>
+          </Pressable>
+        )}
+
+        {/* Profile header */}
+        <Pressable
+          testID="profile-header-card"
+          style={styles.headerCard}
+          onPress={openEdit}
+        >
           <View>
             <Avatar
               name={user.name}
               url={user.avatar_url}
-              size={80}
+              size={72}
               flagCode={countryToCode(user.country)}
               frame={user.active_frame}
             />
@@ -279,274 +392,326 @@ export default function Profile() {
               {uploadingAvatar ? (
                 <ActivityIndicator size="small" color={colors.onBrand} />
               ) : (
-                <Ionicons name="camera" size={13} color={colors.onBrand} />
+                <Ionicons name="camera" size={12} color={colors.onBrand} />
               )}
             </Pressable>
           </View>
-          {editing ? (
-            <TextInput
-              testID="profile-name-input"
-              style={[styles.input, styles.nameInput]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Your name"
-              placeholderTextColor={colors.onSurfaceSecondary}
-            />
-          ) : (
+
+          <View style={styles.headerInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.name}>{user.name}</Text>
+              <Text style={styles.name} numberOfLines={1}>
+                {user.name}
+              </Text>
               <GenderBadge gender={user.gender} />
               {user.is_vip && <VipBadge tier={user.vip_tier} />}
             </View>
-          )}
-          <Pressable
-            testID="username-row"
-            style={styles.usernamePill}
-            onPress={() => {
-              setUsernameDraft(user.username || "");
-              setUsernameError(null);
-              setUsernameModal(true);
-            }}
-          >
-            <Text style={styles.usernameText}>@{user.username || "set username"}</Text>
-            <Ionicons name="pencil" size={11} color={colors.onBrandTertiary} />
-          </Pressable>
-          <Text style={styles.email}>{user.email}</Text>
-          <LanguagePair
-            compact
-            native={editing ? nativeLang : user.native_language}
-            teach={editing ? teachLangs : user.teach_languages}
-            learning={
-              editing
-                ? learningLangs
-                : user.learning_languages?.length
-                  ? user.learning_languages
-                  : user.learning_language
-            }
+            <Pressable
+              testID="username-row"
+              style={styles.usernamePill}
+              onPress={() => {
+                setUsernameDraft(user.username || "");
+                setUsernameError(null);
+                setUsernameModal(true);
+              }}
+            >
+              <Text style={styles.usernameText}>
+                @{user.username || "set username"}
+              </Text>
+              <Ionicons name="copy-outline" size={11} color={colors.onSurfaceSecondary} />
+            </Pressable>
+            <View style={styles.followRow}>
+              <Pressable
+                testID="profile-following-stat"
+                style={styles.followItem}
+                onPress={() => router.push("/follows?tab=following")}
+              >
+                <Text style={styles.followNum}>{social?.following ?? 0}</Text>
+                <Text style={styles.followLabel}>Following</Text>
+              </Pressable>
+              <Pressable
+                testID="profile-followers-stat"
+                style={styles.followItem}
+                onPress={() => router.push("/follows?tab=followers")}
+              >
+                <Text style={styles.followNum}>{social?.followers ?? 0}</Text>
+                <Text style={styles.followLabel}>Followers</Text>
+              </Pressable>
+            </View>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={colors.onSurfaceSecondary}
           />
-          {user.proficiency && !editing && (
-            <Text style={styles.proficiency}>
-              {langName(user.learning_language)} · {user.proficiency}
-            </Text>
-          )}
-          <View style={styles.statsRow}>
-            <View style={styles.statCell} testID="profile-streak-stat">
-              <View style={styles.statValueRow}>
-                <Ionicons name="flame" size={16} color={colors.warning} />
-                <Text style={styles.statValue}>{user.streak_count ?? 0}</Text>
-              </View>
-              <Text style={styles.statLabel}>Day Streak</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <Pressable
-              testID="profile-views-stat"
-              style={styles.statCell}
-              onPress={() => router.push("/visitors")}
-            >
-              <View style={styles.statValueRow}>
-                <Ionicons name="eye" size={16} color={colors.brand} />
-                <Text style={styles.statValue}>{visitorCount ?? 0}</Text>
-              </View>
-              <Text style={styles.statLabel}>Profile Views</Text>
-            </Pressable>
-            <View style={styles.statDivider} />
-            <View style={styles.statCell} testID="profile-days-stat">
-              <View style={styles.statValueRow}>
-                <Ionicons name="calendar" size={16} color={colors.success} />
-                <Text style={styles.statValue}>{daysMember}</Text>
-              </View>
-              <Text style={styles.statLabel}>Days Member</Text>
+        </Pressable>
+
+        {/* Streak + Visitors cards */}
+        <View style={styles.duoRow}>
+          <View style={styles.duoCard} testID="profile-streak-stat">
+            <Ionicons name="flame" size={26} color={colors.warning} />
+            <View>
+              <Text style={styles.duoValue}>{user.streak_count ?? 0}</Text>
+              <Text style={styles.duoLabel}>Day Streak</Text>
             </View>
           </View>
-          <View style={styles.statsRow}>
-            <Pressable
-              testID="profile-followers-stat"
-              style={styles.statCell}
-              onPress={() => router.push("/follows?tab=followers")}
-            >
-              <View style={styles.statValueRow}>
-                <Ionicons name="people" size={16} color={colors.brand} />
-                <Text style={styles.statValue}>{social?.followers ?? 0}</Text>
-              </View>
-              <Text style={styles.statLabel}>Followers</Text>
-            </Pressable>
-            <View style={styles.statDivider} />
-            <Pressable
-              testID="profile-following-stat"
-              style={styles.statCell}
-              onPress={() => router.push("/follows?tab=following")}
-            >
-              <View style={styles.statValueRow}>
-                <Ionicons name="person-add" size={16} color={colors.success} />
-                <Text style={styles.statValue}>{social?.following ?? 0}</Text>
-              </View>
-              <Text style={styles.statLabel}>Following</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            testID="profile-visitors-stat"
+            style={styles.duoCard}
+            onPress={() => router.push("/visitors")}
+          >
+            <Ionicons name="eye" size={26} color={colors.brand} />
+            <View>
+              <Text style={styles.duoValue}>{visitorCount ?? 0}</Text>
+              <Text style={styles.duoLabel}>Visitors</Text>
+            </View>
+          </Pressable>
         </View>
 
+        {/* Moments */}
+        <Pressable
+          testID="profile-moments-row"
+          style={styles.momentsCard}
+          onPress={() => router.push("/(tabs)/moments")}
+        >
+          <View style={[styles.momentsIcon, { backgroundColor: "#EDE9FE" }]}>
+            <Ionicons name="planet" size={20} color="#8B5CF6" />
+          </View>
+          <Text style={styles.momentsTitle}>Moments</Text>
+          <Text style={styles.momentsCount}>{momentsCount ?? 0}</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={colors.onSurfaceSecondary}
+          />
+        </Pressable>
+
+        {/* VIP comparison / member banner */}
         {user.is_vip ? (
-          <View style={styles.vipBanner} testID="vip-status-banner">
-            <Ionicons name="diamond" size={18} color="#B45309" />
-            <Text style={styles.vipBannerText}>
-              VIP member — 3 learning languages, unlimited chats & VIP badge
+          <View style={styles.vipMemberCard} testID="vip-status-banner">
+            <Ionicons name="diamond" size={20} color="#B45309" />
+            <Text style={styles.vipMemberText}>
+              You&apos;re a VIP member — unlimited translations, 3 learning
+              languages & VIP badge
             </Text>
           </View>
         ) : (
-          <Pressable
-            testID="vip-upgrade-btn"
-            onPress={upgradeVip}
-          >
-            <LinearGradient
-              colors={["#F59E0B", "#D97706"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.vipUpgradeBtn}
-            >
-              <View style={styles.vipIconWrap}>
-                <Ionicons name="diamond" size={20} color="#FFF" />
+          <View style={styles.vipCard} testID="vip-features-card">
+            <View style={styles.vipHeaderRow}>
+              <View style={styles.vipHeaderLeft}>
+                <Ionicons name="ribbon" size={18} color="#B45309" />
+                <Text style={styles.vipHeaderTitle}>VIP Features</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.vipUpgradeTitle}>Upgrade to VIP</Text>
-                <Text style={styles.vipUpgradeSub}>
-                  Buy with coins in the Marketplace
-                </Text>
+              <Text style={styles.vipCol}>Free</Text>
+              <Text style={[styles.vipCol, styles.vipColHi]}>VIP</Text>
+            </View>
+            {[
+              { label: "Unlimited Translations", free: "5/day", vip: "∞" },
+              { label: "Unlock Visitors page", free: "—", vip: "✓" },
+              { label: "Search nearby Users", free: "—", vip: "✓" },
+            ].map((r) => (
+              <View key={r.label} style={styles.vipRow}>
+                <Text style={styles.vipFeatureLabel}>{r.label}</Text>
+                <Text style={styles.vipFreeVal}>{r.free}</Text>
+                <Text style={styles.vipVipVal}>{r.vip}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#FFF" />
-            </LinearGradient>
-          </Pressable>
+            ))}
+            <Pressable testID="vip-upgrade-btn" onPress={upgradeVip}>
+              <LinearGradient
+                colors={["#F59E0B", "#EF4444"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.unlockBtn}
+              >
+                <Text style={styles.unlockText}>Unlock 30% OFF</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
         )}
 
-        <Text style={styles.groupLabel}>Profile details</Text>
-        <View style={styles.section}>
-          <Pressable
-            testID="profile-market-row"
-            style={styles.settingRow}
-            onPress={() => router.push("/market")}
-          >
-            <View style={styles.settingIcon}>
-              <Ionicons name="bag-handle" size={18} color={colors.brand} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>Marketplace</Text>
-              <Text style={styles.settingSub}>
-                VIP, badges & avatar rings · 🪙 {user.coins ?? 0} coins
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={colors.onSurfaceSecondary}
-            />
-          </Pressable>
-        </View>
-        <View style={styles.section}>
-          <Pressable
-            testID="profile-views-row"
-            style={styles.settingRow}
-            onPress={() => router.push("/visitors")}
-          >
-            <View style={styles.settingIcon}>
-              <Ionicons name="eye" size={18} color={colors.brand} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>Profile Views</Text>
-              <Text style={styles.settingSub}>
-                {visitorCount ?? 0} {visitorCount === 1 ? "person" : "people"} visited your profile
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={colors.onSurfaceSecondary}
-            />
-          </Pressable>
-        </View>
-        <View style={styles.section}>
-          <Pressable
-            testID="collapse-about"
-            style={styles.collapseHeader}
-            onPress={() => toggleSection("about")}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}
+        {/* Feature grid */}
+        <View style={styles.gridCard}>
+          {FEATURES.map((f) => (
+            <Pressable
+              key={f.key}
+              testID={`feature-${f.key}`}
+              style={styles.gridItem}
+              onPress={() => router.push(f.route as never)}
             >
-              <Ionicons name="person" size={15} color={colors.brand} />
-              <Text style={styles.sectionTitle}>About</Text>
+              <View style={[styles.gridIcon, { backgroundColor: f.color }]}>
+                <Ionicons name={f.icon} size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.gridLabel} numberOfLines={1}>
+                {f.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Learning points */}
+        <Text style={styles.groupLabel}>Learning Points</Text>
+        <View style={styles.section}>
+          <View style={styles.lpTopRow}>
+            <View style={styles.lpTopItem}>
+              <Ionicons name="calendar" size={16} color={colors.success} />
+              <Text style={styles.lpTopText}>Joined for {daysMember} days</Text>
             </View>
-            <Ionicons
-              name={expanded === "about" || editing ? "chevron-up" : "chevron-down"}
-              size={16}
-              color={colors.onSurfaceSecondary}
-            />
+            <View style={styles.lpTopItem}>
+              <Text style={styles.lpCoin}>🪙</Text>
+              <Text style={styles.lpTopText}>{user.coins ?? 0} Coins</Text>
+            </View>
+          </View>
+          <View style={styles.lpStatsRow}>
+            {[
+              {
+                icon: "flame" as IconName,
+                color: colors.warning,
+                value: user.streak_count ?? 0,
+              },
+              {
+                icon: "planet" as IconName,
+                color: "#8B5CF6",
+                value: momentsCount ?? 0,
+              },
+              {
+                icon: "people" as IconName,
+                color: colors.brand,
+                value: social?.followers ?? 0,
+              },
+              {
+                icon: "person-add" as IconName,
+                color: colors.success,
+                value: social?.following ?? 0,
+              },
+              {
+                icon: "eye" as IconName,
+                color: colors.error,
+                value: visitorCount ?? 0,
+              },
+            ].map((s, i) => (
+              <View key={i} style={styles.lpStatCell}>
+                <Ionicons name={s.icon} size={20} color={s.color} />
+                <Text style={styles.lpStatValue}>{s.value}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable
+            testID="lp-history-btn"
+            onPress={() => router.push("/follows?tab=followers")}
+          >
+            <LinearGradient
+              colors={[colors.brand, "#6366F1"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.historyBtn}
+            >
+              <Text style={styles.historyText}>View Community</Text>
+            </LinearGradient>
           </Pressable>
-          {(expanded === "about" || editing) && (
-            <View style={{ gap: spacing.xl }}>
-        <View>
-          <Text style={styles.sectionTitle}>About me</Text>
-          {editing ? (
-            <TextInput
-              testID="profile-bio-input"
-              style={[styles.input, styles.bioInput]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Tell partners about yourself..."
-              placeholderTextColor={colors.onSurfaceSecondary}
-              multiline
-            />
-          ) : (
-            <Text style={styles.bodyText}>
-              {user.bio || "No bio yet. Tap Edit to add one!"}
-            </Text>
-          )}
         </View>
 
-        <View>
-          <Text style={styles.sectionTitle}>
-            Interests{editing ? ` (${interests.length}/${MAX_INTERESTS})` : ""}
-          </Text>
-          {editing ? (
-            <View style={styles.chipWrap}>
-              {INTERESTS.map((i) => {
-                const active = interests.includes(i);
-                return (
-                  <Pressable
-                    key={i}
-                    testID={`profile-interest-${i.toLowerCase().replace(/\s/g, "-")}`}
-                    onPress={() =>
-                      toggleList(interests, setInterests, i, MAX_INTERESTS)
-                    }
-                    style={[styles.chip, active && styles.chipActive]}
-                  >
-                    <Text
-                      style={[styles.chipText, active && styles.chipTextActive]}
+        {/* Invite friends */}
+        <View style={styles.section}>
+          <Text style={styles.inviteTitle}>Invite Friends</Text>
+          <Text style={styles.inviteSub}>Share the link with your friends</Text>
+          <Pressable testID="invite-share-btn" onPress={onShare}>
+            <View style={styles.shareBtn}>
+              <Ionicons name="share-social" size={18} color={colors.onBrand} />
+              <Text style={styles.shareText}>Share</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        <Pressable
+          testID="how-it-works"
+          style={styles.howRow}
+          onPress={() => setSettingsOpen(true)}
+        >
+          <Text style={styles.howText}>Settings & Privacy</Text>
+        </Pressable>
+      </ScrollView>
+
+      {/* ── Edit Profile Modal ── */}
+      <Modal
+        visible={editing}
+        animationType="slide"
+        onRequestClose={() => setEditing(false)}
+      >
+        <SafeAreaView style={styles.modalScreen} edges={["top"]}>
+          <View style={styles.modalHeader}>
+            <Pressable
+              testID="edit-close-btn"
+              onPress={() => setEditing(false)}
+              style={styles.iconBtn}
+            >
+              <Ionicons name="close" size={24} color={colors.onSurface} />
+            </Pressable>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <Pressable
+              testID="profile-save-btn"
+              onPress={save}
+              disabled={saving}
+              style={styles.editSaveBtn}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.onBrand} />
+              ) : (
+                <Text style={styles.editSaveText}>Save</Text>
+              )}
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Name</Text>
+              <TextInput
+                testID="profile-name-input"
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Your name"
+                placeholderTextColor={colors.onSurfaceSecondary}
+              />
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>About me</Text>
+              <TextInput
+                testID="profile-bio-input"
+                style={[styles.input, styles.bioInput]}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell partners about yourself..."
+                placeholderTextColor={colors.onSurfaceSecondary}
+                multiline
+              />
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Interests ({interests.length}/{MAX_INTERESTS})
+              </Text>
+              <View style={styles.chipWrap}>
+                {INTERESTS.map((i) => {
+                  const active = interests.includes(i);
+                  return (
+                    <Pressable
+                      key={i}
+                      testID={`profile-interest-${i.toLowerCase().replace(/\s/g, "-")}`}
+                      onPress={() =>
+                        toggleList(interests, setInterests, i, MAX_INTERESTS)
+                      }
+                      style={[styles.chip, active && styles.chipActive]}
                     >
-                      {i}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Text
+                        style={[styles.chipText, active && styles.chipTextActive]}
+                      >
+                        {i}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          ) : user.interests?.length ? (
-            <View style={styles.chipWrap}>
-              {user.interests.map((i) => (
-                <View key={i} style={[styles.chip, styles.chipActive]}>
-                  <Text style={[styles.chipText, styles.chipTextActive]}>{i}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.bodyText}>
-              No interests yet. Tap Edit to add some!
-            </Text>
-          )}
-        </View>
-            </View>
-          )}
-        </View>
 
-        {editing && (
-          <>
             <View style={styles.section}>
               <Pressable
                 testID="collapse-native"
@@ -564,39 +729,40 @@ export default function Profile() {
                 </View>
               </Pressable>
               {expanded === "native" && (
-              <View style={styles.chipWrap}>
-                {LANGUAGES.map((lang) => {
-                  const active = nativeLang === lang.code;
-                  return (
-                    <Pressable
-                      key={lang.code}
-                      testID={`profile-native-${lang.code}`}
-                      onPress={() => {
-                        setNativeLang(lang.code);
-                        setTeachLangs((prev) =>
-                          prev.filter((c) => c !== lang.code),
-                        );
-                        setLearningLangs((prev) =>
-                          prev.filter((c) => c !== lang.code),
-                        );
-                      }}
-                      style={[styles.chip, active && styles.chipActive]}
-                    >
-                      <FlagIcon code={lang.code} size={14} />
-                      <Text
-                        style={[
-                          styles.chipText,
-                          active && styles.chipTextActive,
-                        ]}
+                <View style={styles.chipWrap}>
+                  {LANGUAGES.map((lang) => {
+                    const active = nativeLang === lang.code;
+                    return (
+                      <Pressable
+                        key={lang.code}
+                        testID={`profile-native-${lang.code}`}
+                        onPress={() => {
+                          setNativeLang(lang.code);
+                          setTeachLangs((prev) =>
+                            prev.filter((c) => c !== lang.code),
+                          );
+                          setLearningLangs((prev) =>
+                            prev.filter((c) => c !== lang.code),
+                          );
+                        }}
+                        style={[styles.chip, active && styles.chipActive]}
                       >
-                        {lang.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        <FlagIcon code={lang.code} size={14} />
+                        <Text
+                          style={[
+                            styles.chipText,
+                            active && styles.chipTextActive,
+                          ]}
+                        >
+                          {lang.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               )}
             </View>
+
             <View style={styles.section}>
               <Pressable
                 testID="collapse-teach"
@@ -624,36 +790,37 @@ export default function Profile() {
                 </Text>
               )}
               {expanded === "teach" && user.is_vip && (
-              <View style={styles.chipWrap}>
-                {LANGUAGES.filter((l) => l.code !== nativeLang).map((lang) => {
-                  const active = teachLangs.includes(lang.code);
-                  return (
-                    <Pressable
-                      key={lang.code}
-                      testID={`profile-teach-${lang.code}`}
-                      onPress={() => {
-                        toggleList(teachLangs, setTeachLangs, lang.code, 2);
-                        setLearningLangs((prev) =>
-                          prev.filter((c) => c !== lang.code),
-                        );
-                      }}
-                      style={[styles.chip, active && styles.chipActive]}
-                    >
-                      <FlagIcon code={lang.code} size={14} />
-                      <Text
-                        style={[
-                          styles.chipText,
-                          active && styles.chipTextActive,
-                        ]}
+                <View style={styles.chipWrap}>
+                  {LANGUAGES.filter((l) => l.code !== nativeLang).map((lang) => {
+                    const active = teachLangs.includes(lang.code);
+                    return (
+                      <Pressable
+                        key={lang.code}
+                        testID={`profile-teach-${lang.code}`}
+                        onPress={() => {
+                          toggleList(teachLangs, setTeachLangs, lang.code, 2);
+                          setLearningLangs((prev) =>
+                            prev.filter((c) => c !== lang.code),
+                          );
+                        }}
+                        style={[styles.chip, active && styles.chipActive]}
                       >
-                        {lang.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        <FlagIcon code={lang.code} size={14} />
+                        <Text
+                          style={[
+                            styles.chipText,
+                            active && styles.chipTextActive,
+                          ]}
+                        >
+                          {lang.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               )}
             </View>
+
             <View style={styles.section}>
               <Pressable
                 testID="collapse-learning"
@@ -668,40 +835,43 @@ export default function Profile() {
                     <FlagIcon key={c} code={c} size={16} />
                   ))}
                   <Ionicons
-                    name={expanded === "learning" ? "chevron-up" : "chevron-down"}
+                    name={
+                      expanded === "learning" ? "chevron-up" : "chevron-down"
+                    }
                     size={16}
                     color={colors.onSurfaceSecondary}
                   />
                 </View>
               </Pressable>
               {expanded === "learning" && (
-              <View style={styles.chipWrap}>
-                {LANGUAGES.filter(
-                  (l) => l.code !== nativeLang && !teachLangs.includes(l.code),
-                ).map((lang) => {
-                  const active = learningLangs.includes(lang.code);
-                  return (
-                    <Pressable
-                      key={lang.code}
-                      testID={`profile-learning-${lang.code}`}
-                      onPress={() => toggleLearning(lang.code)}
-                      style={[styles.chip, active && styles.chipActive]}
-                    >
-                      <FlagIcon code={lang.code} size={14} />
-                      <Text
-                        style={[
-                          styles.chipText,
-                          active && styles.chipTextActive,
-                        ]}
+                <View style={styles.chipWrap}>
+                  {LANGUAGES.filter(
+                    (l) => l.code !== nativeLang && !teachLangs.includes(l.code),
+                  ).map((lang) => {
+                    const active = learningLangs.includes(lang.code);
+                    return (
+                      <Pressable
+                        key={lang.code}
+                        testID={`profile-learning-${lang.code}`}
+                        onPress={() => toggleLearning(lang.code)}
+                        style={[styles.chip, active && styles.chipActive]}
                       >
-                        {lang.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        <FlagIcon code={lang.code} size={14} />
+                        <Text
+                          style={[
+                            styles.chipText,
+                            active && styles.chipTextActive,
+                          ]}
+                        >
+                          {lang.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               )}
             </View>
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Level</Text>
               <View style={styles.chipWrap}>
@@ -715,10 +885,7 @@ export default function Profile() {
                       style={[styles.chip, active && styles.chipActive]}
                     >
                       <Text
-                        style={[
-                          styles.chipText,
-                          active && styles.chipTextActive,
-                        ]}
+                        style={[styles.chipText, active && styles.chipTextActive]}
                       >
                         {level}
                       </Text>
@@ -727,164 +894,223 @@ export default function Profile() {
                 })}
               </View>
             </View>
-          </>
-        )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
-        <Text style={styles.groupLabel}>Privacy</Text>
-        <View style={styles.section}>
-          <Pressable
-            testID="collapse-privacy"
-            style={styles.collapseHeader}
-            onPress={() => toggleSection("privacy")}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}
+      {/* ── Settings Modal ── */}
+      <Modal
+        visible={settingsOpen}
+        animationType="slide"
+        onRequestClose={() => setSettingsOpen(false)}
+      >
+        <SafeAreaView style={styles.modalScreen} edges={["top"]}>
+          <View style={styles.modalHeader}>
+            <Pressable
+              testID="settings-close-btn"
+              onPress={() => setSettingsOpen(false)}
+              style={styles.iconBtn}
             >
-              <Ionicons name="lock-closed" size={15} color={colors.brand} />
-              <Text style={styles.sectionTitle}>Privacy options</Text>
-            </View>
-            <Ionicons
-              name={expanded === "privacy" ? "chevron-up" : "chevron-down"}
-              size={16}
-              color={colors.onSurfaceSecondary}
-            />
-          </Pressable>
-          {expanded === "privacy" &&
-          (
-            [
-              { key: "show_online", label: "Show online status", icon: "radio-button-on" },
-              { key: "show_age", label: "Show my age", icon: "calendar" },
-              { key: "show_gender", label: "Show my gender", icon: "male-female" },
-              { key: "show_country", label: "Show my country & flag", icon: "flag" },
-              { key: "show_interests", label: "Show my interests", icon: "heart" },
-            ] as const
-          ).map((opt, idx, arr) => {
-            const on = privacy[opt.key] ?? true;
-            return (
-              <React.Fragment key={opt.key}>
-                <Pressable
-                  testID={`privacy-${opt.key}`}
-                  style={styles.settingRow}
-                  onPress={() => togglePrivacy(opt.key)}
-                >
-                  <View style={styles.settingIcon}>
-                    <Ionicons name={opt.icon} size={16} color={colors.brand} />
-                  </View>
-                  <Text style={[styles.settingTitle, { flex: 1 }]}>
-                    {opt.label}
+              <Ionicons name="close" size={24} color={colors.onSurface} />
+            </Pressable>
+            <Text style={styles.modalTitle}>Settings</Text>
+            <View style={styles.iconBtn} />
+          </View>
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <Text style={styles.groupLabel}>Appearance</Text>
+            <View style={styles.section}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingIcon}>
+                  <Ionicons name="moon" size={18} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingTitle}>Dark mode</Text>
+                  <Text style={styles.settingSub}>
+                    {mode === "dark"
+                      ? "On — easy on the eyes"
+                      : "Off — bright & friendly"}
                   </Text>
-                  <View
-                    style={[styles.toggleTrack, on && styles.toggleTrackOn]}
+                </View>
+                <View style={styles.modeToggle}>
+                  <Pressable
+                    testID="mode-light-btn"
+                    onPress={() => mode === "dark" && toggleMode()}
+                    style={[
+                      styles.modeOpt,
+                      mode === "light" && styles.modeOptActive,
+                    ]}
                   >
-                    <View
-                      style={[styles.toggleThumb, on && styles.toggleThumbOn]}
+                    <Ionicons
+                      name="sunny"
+                      size={16}
+                      color={
+                        mode === "light"
+                          ? colors.onBrand
+                          : colors.onSurfaceSecondary
+                      }
                     />
-                  </View>
-                </Pressable>
-                {idx < arr.length - 1 && <View style={styles.settingDivider} />}
-              </React.Fragment>
-            );
-          })}
-        </View>
+                  </Pressable>
+                  <Pressable
+                    testID="mode-dark-btn"
+                    onPress={() => mode === "light" && toggleMode()}
+                    style={[
+                      styles.modeOpt,
+                      mode === "dark" && styles.modeOptActive,
+                    ]}
+                  >
+                    <Ionicons
+                      name="moon"
+                      size={16}
+                      color={
+                        mode === "dark"
+                          ? colors.onBrand
+                          : colors.onSurfaceSecondary
+                      }
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            </View>
 
-        <Text style={styles.groupLabel}>Settings</Text>
-        <View style={styles.section}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="moon" size={18} color={colors.brand} />
+            <Text style={styles.groupLabel}>Privacy</Text>
+            <View style={styles.section}>
+              {(
+                [
+                  {
+                    key: "show_online",
+                    label: "Show online status",
+                    icon: "radio-button-on",
+                  },
+                  { key: "show_age", label: "Show my age", icon: "calendar" },
+                  {
+                    key: "show_gender",
+                    label: "Show my gender",
+                    icon: "male-female",
+                  },
+                  {
+                    key: "show_country",
+                    label: "Show my country & flag",
+                    icon: "flag",
+                  },
+                  {
+                    key: "show_interests",
+                    label: "Show my interests",
+                    icon: "heart",
+                  },
+                ] as const
+              ).map((opt, idx, arr) => {
+                const on = privacy[opt.key] ?? true;
+                return (
+                  <React.Fragment key={opt.key}>
+                    <Pressable
+                      testID={`privacy-${opt.key}`}
+                      style={styles.settingRow}
+                      onPress={() => togglePrivacy(opt.key)}
+                    >
+                      <View style={styles.settingIcon}>
+                        <Ionicons
+                          name={opt.icon}
+                          size={16}
+                          color={colors.brand}
+                        />
+                      </View>
+                      <Text style={[styles.settingTitle, { flex: 1 }]}>
+                        {opt.label}
+                      </Text>
+                      <View
+                        style={[styles.toggleTrack, on && styles.toggleTrackOn]}
+                      >
+                        <View
+                          style={[styles.toggleThumb, on && styles.toggleThumbOn]}
+                        />
+                      </View>
+                    </Pressable>
+                    {idx < arr.length - 1 && (
+                      <View style={styles.settingDivider} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>Dark mode</Text>
-              <Text style={styles.settingSub}>
-                {mode === "dark" ? "On — easy on the eyes" : "Off — bright & friendly"}
-              </Text>
-            </View>
-            <View style={styles.modeToggle}>
+
+            <Text style={styles.groupLabel}>Languages</Text>
+            <View style={styles.section}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingIcon}>
+                  <Ionicons name="language" size={18} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingTitle}>Native language</Text>
+                  <Text style={styles.settingSub}>
+                    {langName(user.native_language)}
+                  </Text>
+                </View>
+                <FlagIcon code={user.native_language} size={22} />
+              </View>
+              <View style={styles.settingDivider} />
+              <View style={styles.settingRow}>
+                <View style={styles.settingIcon}>
+                  <Ionicons name="school" size={18} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingTitle}>Learning</Text>
+                  <Text style={styles.settingSub}>
+                    {learningNames}
+                    {user.proficiency ? ` · ${user.proficiency}` : ""}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.settingDivider} />
               <Pressable
-                testID="mode-light-btn"
-                onPress={() => mode === "dark" && toggleMode()}
-                style={[
-                  styles.modeOpt,
-                  mode === "light" && styles.modeOptActive,
-                ]}
+                testID="settings-edit-profile"
+                style={styles.settingRow}
+                onPress={() => {
+                  setSettingsOpen(false);
+                  setTimeout(openEdit, 250);
+                }}
               >
+                <View style={styles.settingIcon}>
+                  <Ionicons name="create" size={18} color={colors.brand} />
+                </View>
+                <Text style={[styles.settingTitle, { flex: 1 }]}>
+                  Edit profile & languages
+                </Text>
                 <Ionicons
-                  name="sunny"
-                  size={16}
-                  color={mode === "light" ? colors.onBrand : colors.onSurfaceSecondary}
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.onSurfaceSecondary}
                 />
               </Pressable>
-              <Pressable
-                testID="mode-dark-btn"
-                onPress={() => mode === "light" && toggleMode()}
-                style={[styles.modeOpt, mode === "dark" && styles.modeOptActive]}
-              >
-                <Ionicons
-                  name="moon"
-                  size={16}
-                  color={mode === "dark" ? colors.onBrand : colors.onSurfaceSecondary}
-                />
-              </Pressable>
             </View>
-          </View>
-          <View style={styles.settingDivider} />
-          <View style={styles.settingRow}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="language" size={18} color={colors.brand} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>Native language</Text>
-              <Text style={styles.settingSub}>
-                {langName(user.native_language)} — partners learn this from you
-              </Text>
-            </View>
-            <FlagIcon code={user.native_language} size={22} />
-          </View>
-          <View style={styles.settingDivider} />
-          <View style={styles.settingRow}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="school" size={18} color={colors.brand} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>Learning</Text>
-              <Text style={styles.settingSub}>
-                {(user.learning_languages?.length
-                  ? user.learning_languages
-                  : user.learning_language
-                    ? [user.learning_language]
-                    : []
-                )
-                  .map((c) => langName(c))
-                  .join(", ") || "Not set"}
-                {user.proficiency ? ` · ${user.proficiency}` : ""} — tap Edit
-                Profile to change
-              </Text>
-            </View>
-            <FlagIcon code={user.learning_language} size={22} />
-          </View>
-        </View>
 
-        <Text style={styles.groupLabel}>About</Text>
-        <View style={styles.section}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingIcon}>
-              <Ionicons name="chatbubbles" size={18} color={colors.brand} />
+            <Text style={styles.groupLabel}>About</Text>
+            <View style={styles.section}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingIcon}>
+                  <Ionicons name="chatbubbles" size={18} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingTitle}>LinguaConnect</Text>
+                  <Text style={styles.settingSub}>
+                    Version 1.2 · Language exchange, AI tools, voice rooms & calls
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>LinguaConnect</Text>
-              <Text style={styles.settingSub}>
-                Version 1.1 · Language exchange, AI tools, voice rooms & calls
-              </Text>
-            </View>
-          </View>
-        </View>
 
-        <Pressable testID="logout-btn" style={styles.logoutBtn} onPress={doLogout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </Pressable>
-      </ScrollView>
+            <Pressable
+              testID="logout-btn"
+              style={styles.logoutBtn}
+              onPress={doLogout}
+            >
+              <Ionicons name="log-out-outline" size={20} color={colors.error} />
+              <Text style={styles.logoutText}>Log Out</Text>
+            </Pressable>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
+      {/* ── Username Modal ── */}
       <Modal
         visible={usernameModal}
         transparent
@@ -948,96 +1174,540 @@ const makeStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surfaceSecondary,
     },
     scroll: {
-      padding: spacing.xl,
+      padding: spacing.lg,
       paddingBottom: spacing.xxxl,
-      gap: spacing.lg,
+      gap: spacing.md,
     },
-    headerRow: {
+    topBar: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
-    },
-    headerTitle: {
-      fontFamily: fonts.display,
-      fontSize: 28,
-      color: colors.onSurface,
-    },
-    editBtn: {
+      justifyContent: "space-between",
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
-      borderRadius: radius.pill,
-      backgroundColor: colors.brandTertiary,
     },
-    editBtnText: {
+    coinPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      ...shadow.card,
+    },
+    coinDot: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: "#F59E0B",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    coinDotText: {
+      fontFamily: fonts.textBold,
+      fontSize: 9,
+      color: "#FFFFFF",
+    },
+    coinCount: {
       fontFamily: fonts.textBold,
       fontSize: 14,
-      color: colors.onBrandTertiary,
+      color: colors.onSurface,
+      marginRight: 4,
     },
-    profileCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      padding: spacing.xl,
+    topActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    promoBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    promoText: {
+      flex: 1,
+      fontFamily: fonts.textBold,
+      fontSize: 14,
+      color: "#FFFFFF",
+    },
+    promoViewBtn: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 5,
+    },
+    promoViewText: {
+      fontFamily: fonts.textBold,
+      fontSize: 13,
+      color: "#065F46",
+    },
+    headerCard: {
+      flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
       ...shadow.card,
     },
     avatarEditBtn: {
       position: "absolute",
       bottom: -2,
-      left: -6,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      right: -2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       backgroundColor: colors.brand,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 2,
       borderColor: colors.surface,
     },
-    lockedRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
+    headerInfo: {
+      flex: 1,
+      gap: 4,
     },
     nameRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
     },
-    vipBanner: {
+    name: {
+      fontFamily: fonts.display,
+      fontSize: 22,
+      color: colors.onSurface,
+      flexShrink: 1,
+    },
+    usernamePill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      alignSelf: "flex-start",
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+    },
+    usernameText: {
+      fontFamily: fonts.textSemi,
+      fontSize: 12,
+      color: colors.onSurfaceSecondary,
+    },
+    followRow: {
+      flexDirection: "row",
+      gap: spacing.xl,
+      marginTop: 2,
+    },
+    followItem: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 4,
+    },
+    followNum: {
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: colors.onSurface,
+    },
+    followLabel: {
+      fontFamily: fonts.text,
+      fontSize: 12,
+      color: colors.onSurfaceSecondary,
+    },
+    duoRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    duoCard: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      ...shadow.card,
+    },
+    duoValue: {
+      fontFamily: fonts.display,
+      fontSize: 20,
+      color: colors.onSurface,
+    },
+    duoLabel: {
+      fontFamily: fonts.textSemi,
+      fontSize: 12,
+      color: colors.onSurfaceSecondary,
+    },
+    momentsCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      ...shadow.card,
+    },
+    momentsIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.sm,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    momentsTitle: {
+      flex: 1,
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: colors.onSurface,
+    },
+    momentsCount: {
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: colors.onSurfaceSecondary,
+    },
+    vipMemberCard: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.md,
       backgroundColor: "#FEF3C7",
-      borderRadius: radius.md,
+      borderRadius: radius.lg,
       padding: spacing.lg,
-      marginTop: spacing.md,
     },
-    vipBannerText: {
+    vipMemberText: {
       flex: 1,
       fontFamily: fonts.textSemi,
       fontSize: 13,
       color: "#92400E",
     },
-    vipUpgradeBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
+    vipCard: {
+      backgroundColor: "#FEF9EC",
       borderRadius: radius.lg,
       padding: spacing.lg,
-      marginTop: spacing.md,
+      gap: spacing.sm,
+      borderWidth: 1,
+      borderColor: "#FCD34D",
+    },
+    vipHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: spacing.xs,
+    },
+    vipHeaderLeft: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    vipHeaderTitle: {
+      fontFamily: fonts.display,
+      fontSize: 16,
+      color: "#065F46",
+    },
+    vipCol: {
+      width: 70,
+      textAlign: "center",
+      fontFamily: fonts.textBold,
+      fontSize: 13,
+      color: "#B45309",
+    },
+    vipColHi: {
+      color: "#065F46",
+    },
+    vipRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    vipFeatureLabel: {
+      flex: 1,
+      fontFamily: fonts.textSemi,
+      fontSize: 13,
+      color: "#065F46",
+    },
+    vipFreeVal: {
+      width: 70,
+      textAlign: "center",
+      fontFamily: fonts.text,
+      fontSize: 13,
+      color: "#B45309",
+    },
+    vipVipVal: {
+      width: 70,
+      textAlign: "center",
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: "#065F46",
+    },
+    unlockBtn: {
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      marginTop: spacing.sm,
+    },
+    unlockText: {
+      fontFamily: fonts.textBold,
+      fontSize: 16,
+      color: "#FFFFFF",
+    },
+    gridCard: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.md,
       ...shadow.card,
     },
-    vipUpgradeTitle: {
+    gridItem: {
+      width: "25%",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: spacing.md,
+    },
+    gridIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    gridLabel: {
+      fontFamily: fonts.textSemi,
+      fontSize: 11,
+      color: colors.onSurface,
+      textAlign: "center",
+    },
+    groupLabel: {
+      fontFamily: fonts.textBold,
+      fontSize: 12,
+      color: colors.onSurfaceSecondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+      marginTop: spacing.sm,
+      marginBottom: -spacing.xs,
+    },
+    section: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      gap: spacing.sm,
+      ...shadow.card,
+    },
+    lpTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingBottom: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.divider,
+    },
+    lpTopItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    lpCoin: {
+      fontSize: 14,
+    },
+    lpTopText: {
+      fontFamily: fonts.textBold,
+      fontSize: 14,
+      color: colors.onSurface,
+    },
+    lpStatsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: spacing.md,
+    },
+    lpStatCell: {
+      alignItems: "center",
+      gap: 4,
+      flex: 1,
+    },
+    lpStatValue: {
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: colors.onSurface,
+    },
+    historyBtn: {
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      marginTop: spacing.xs,
+    },
+    historyText: {
       fontFamily: fonts.textBold,
       fontSize: 15,
       color: "#FFFFFF",
     },
-    vipUpgradeSub: {
+    inviteTitle: {
+      fontFamily: fonts.display,
+      fontSize: 18,
+      color: colors.onSurface,
+      textAlign: "center",
+    },
+    inviteSub: {
+      fontFamily: fonts.text,
+      fontSize: 13,
+      color: colors.onSurfaceSecondary,
+      textAlign: "center",
+    },
+    shareBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.brand,
+      borderRadius: radius.pill,
+      paddingVertical: spacing.md,
+      marginTop: spacing.xs,
+    },
+    shareText: {
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: colors.onBrand,
+    },
+    howRow: {
+      alignItems: "center",
+      paddingVertical: spacing.md,
+    },
+    howText: {
+      fontFamily: fonts.textSemi,
+      fontSize: 13,
+      color: colors.onSurfaceSecondary,
+      textDecorationLine: "underline",
+    },
+    // Modals (edit / settings)
+    modalScreen: {
+      flex: 1,
+      backgroundColor: colors.surfaceSecondary,
+    },
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.divider,
+      backgroundColor: colors.surface,
+    },
+    modalTitle: {
+      fontFamily: fonts.display,
+      fontSize: 18,
+      color: colors.onSurface,
+    },
+    editSaveBtn: {
+      minWidth: 56,
+      alignItems: "center",
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+      backgroundColor: colors.brand,
+    },
+    editSaveText: {
+      fontFamily: fonts.textBold,
+      fontSize: 14,
+      color: colors.onBrand,
+    },
+    sectionTitle: {
+      fontFamily: fonts.textBold,
+      fontSize: 13,
+      color: colors.onSurfaceSecondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    bodyText: {
+      fontFamily: fonts.text,
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.onSurface,
+    },
+    input: {
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: radius.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      fontFamily: fonts.text,
+      fontSize: 15,
+      color: colors.onSurface,
+    },
+    bioInput: {
+      minHeight: 80,
+      textAlignVertical: "top",
+    },
+    chipWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    chip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.pill,
+      backgroundColor: colors.surfaceSecondary,
+    },
+    chipActive: {
+      backgroundColor: colors.brandTertiary,
+    },
+    chipText: {
+      fontFamily: fonts.textSemi,
+      fontSize: 13,
+      color: colors.onSurfaceTertiary,
+    },
+    chipTextActive: {
+      color: colors.onBrandTertiary,
+      fontFamily: fonts.textBold,
+    },
+    collapseHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      minHeight: 28,
+    },
+    collapseRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    settingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    settingIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.sm,
+      backgroundColor: colors.brandTertiary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    settingTitle: {
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: colors.onSurface,
+    },
+    settingSub: {
       fontFamily: fonts.text,
       fontSize: 12,
-      color: "rgba(255,255,255,0.9)",
+      color: colors.onSurfaceSecondary,
       marginTop: 1,
+    },
+    settingDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.divider,
+      marginVertical: spacing.xs,
     },
     toggleTrack: {
       width: 42,
@@ -1059,36 +1729,38 @@ const makeStyles = (colors: ThemeColors) =>
     toggleThumbOn: {
       marginLeft: 18,
     },
-    collapseHeader: {
+    modeToggle: {
       flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      minHeight: 28,
-    },
-    collapseRight: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    name: {
-      fontFamily: fonts.display,
-      fontSize: 24,
-      color: colors.onSurface,
-    },
-    usernamePill: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      backgroundColor: colors.brandTertiary,
+      backgroundColor: colors.surfaceSecondary,
       borderRadius: radius.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 4,
-      marginTop: -spacing.xs,
+      padding: 3,
+      gap: 2,
     },
-    usernameText: {
-      fontFamily: fonts.textSemi,
-      fontSize: 13,
-      color: colors.onBrandTertiary,
+    modeOpt: {
+      width: 34,
+      height: 28,
+      borderRadius: radius.pill,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    modeOptActive: {
+      backgroundColor: colors.brand,
+    },
+    logoutBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      paddingVertical: spacing.lg,
+      marginTop: spacing.sm,
+      ...shadow.card,
+    },
+    logoutText: {
+      fontFamily: fonts.textBold,
+      fontSize: 15,
+      color: colors.error,
     },
     unBackdrop: {
       flex: 1,
@@ -1144,191 +1816,5 @@ const makeStyles = (colors: ThemeColors) =>
       fontFamily: fonts.textBold,
       fontSize: 14,
       color: colors.onBrand,
-    },
-    vipIconWrap: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: "rgba(255,255,255,0.22)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    email: {
-      fontFamily: fonts.text,
-      fontSize: 13,
-      color: colors.onSurfaceSecondary,
-    },
-    proficiency: {
-      fontFamily: fonts.textSemi,
-      fontSize: 13,
-      color: colors.onSurfaceSecondary,
-    },
-    statsRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      alignSelf: "stretch",
-      marginTop: spacing.sm,
-      paddingTop: spacing.md,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.divider,
-    },
-    statCell: {
-      flex: 1,
-      alignItems: "center",
-      gap: 2,
-    },
-    statValueRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-    statValue: {
-      fontFamily: fonts.display,
-      fontSize: 20,
-      color: colors.onSurface,
-    },
-    statLabel: {
-      fontFamily: fonts.textSemi,
-      fontSize: 11,
-      color: colors.onSurfaceSecondary,
-    },
-    statDivider: {
-      width: StyleSheet.hairlineWidth,
-      height: 32,
-      backgroundColor: colors.borderStrong,
-    },
-    groupLabel: {
-      fontFamily: fonts.textBold,
-      fontSize: 12,
-      color: colors.onSurfaceSecondary,
-      textTransform: "uppercase",
-      letterSpacing: 0.8,
-      marginTop: spacing.sm,
-      marginBottom: -spacing.sm,
-    },
-    section: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      padding: spacing.lg,
-      gap: spacing.sm,
-      ...shadow.card,
-    },
-    sectionTitle: {
-      fontFamily: fonts.textBold,
-      fontSize: 13,
-      color: colors.onSurfaceSecondary,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-    },
-    bodyText: {
-      fontFamily: fonts.text,
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.onSurface,
-    },
-    input: {
-      backgroundColor: colors.surfaceSecondary,
-      borderRadius: radius.sm,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      fontFamily: fonts.text,
-      fontSize: 15,
-      color: colors.onSurface,
-    },
-    nameInput: {
-      alignSelf: "stretch",
-      textAlign: "center",
-    },
-    bioInput: {
-      minHeight: 80,
-      textAlignVertical: "top",
-    },
-    chipWrap: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: spacing.sm,
-    },
-    chip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.pill,
-      backgroundColor: colors.surfaceSecondary,
-    },
-    chipActive: {
-      backgroundColor: colors.brandTertiary,
-    },
-    chipText: {
-      fontFamily: fonts.textSemi,
-      fontSize: 13,
-      color: colors.onSurfaceTertiary,
-    },
-    chipTextActive: {
-      color: colors.onBrandTertiary,
-      fontFamily: fonts.textBold,
-    },
-    settingRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-      paddingVertical: spacing.xs,
-    },
-    settingIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.sm,
-      backgroundColor: colors.brandTertiary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    settingTitle: {
-      fontFamily: fonts.textBold,
-      fontSize: 15,
-      color: colors.onSurface,
-    },
-    settingSub: {
-      fontFamily: fonts.text,
-      fontSize: 12,
-      color: colors.onSurfaceSecondary,
-      marginTop: 1,
-    },
-    settingDivider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors.divider,
-      marginVertical: spacing.xs,
-    },
-    modeToggle: {
-      flexDirection: "row",
-      backgroundColor: colors.surfaceSecondary,
-      borderRadius: radius.pill,
-      padding: 3,
-      gap: 2,
-    },
-    modeOpt: {
-      width: 34,
-      height: 28,
-      borderRadius: radius.pill,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    modeOptActive: {
-      backgroundColor: colors.brand,
-    },
-    logoutBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      paddingVertical: spacing.lg,
-      ...shadow.card,
-    },
-    logoutText: {
-      fontFamily: fonts.textBold,
-      fontSize: 15,
-      color: colors.error,
     },
   });

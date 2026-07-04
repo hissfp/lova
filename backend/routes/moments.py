@@ -117,6 +117,12 @@ async def my_moments_count(current_user: CurrentUser):
     return {"count": count}
 
 
+@router.get("/user/{user_id}/count")
+async def user_moments_count(user_id: str, current_user: CurrentUser):
+    count = await moments_col.count_documents({"user_id": user_id})
+    return {"count": count}
+
+
 @router.post("", status_code=201)
 async def create_moment(body: MomentCreate, current_user: CurrentUser):
     if current_user.get("restricted"):

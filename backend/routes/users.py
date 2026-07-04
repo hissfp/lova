@@ -17,13 +17,11 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.put("/me")
 async def update_me(body: UserUpdate, current_user: CurrentUser):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
-    # Country, age and gender are set once at signup and cannot be changed afterwards.
+    # Country and age are set once at signup and cannot be changed afterwards.
     if current_user.get("country") and "country" in updates:
         updates.pop("country")
     if current_user.get("age") and "age" in updates:
         updates.pop("age")
-    if current_user.get("gender") and "gender" in updates:
-        updates.pop("gender")
     # Non-VIP users: 1 native + 1 learning language only (no extra teach languages).
     if not current_user.get("is_vip"):
         if updates.get("learning_languages") is not None:
@@ -66,6 +64,24 @@ async def upload_avatar(body: AvatarUpload, current_user: CurrentUser):
         {"_id": current_user["_id"]}, {"$set": {"avatar_url": avatar_url}}
     )
     current_user["avatar_url"] = avatar_url
+    return user_public(current_user)
+
+
+@router.post("/me/cover")
+async def upload_cover(body: AvatarUpload, current_user: CurrentUser):
+    try:
+        image_bytes = base64.b64decode(body.image_base64)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid image data")
+    if len(image_bytes) > 6 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 6MB)")
+    media_id = str(uuid.uuid4())
+    await media_col.insert_one({"_id": media_id, "data": image_bytes, "mime": body.mime})
+    cover_url = f"/api/media/{media_id}"
+    await users_col.update_one(
+        {"_id": current_user["_id"]}, {"$set": {"cover_url": cover_url}}
+    )
+    current_user["cover_url"] = cover_url
     return user_public(current_user)
 
 

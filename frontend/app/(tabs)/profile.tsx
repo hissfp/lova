@@ -7,16 +7,13 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  LayoutAnimation,
   Linking,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,12 +22,7 @@ import { Avatar } from "@/src/components/Avatar";
 import { GenderBadge, VipBadge } from "@/src/components/Badges";
 import { FlagIcon } from "@/src/components/FlagIcon";
 import { countryToCode } from "@/src/constants/countries";
-import { INTERESTS, MAX_INTERESTS } from "@/src/constants/interests";
-import {
-  LANGUAGES,
-  PROFICIENCY_LEVELS,
-  langName,
-} from "@/src/constants/languages";
+import { langName } from "@/src/constants/languages";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { fonts, radius, shadow, spacing, ThemeColors } from "@/src/theme";
@@ -61,30 +53,8 @@ export default function Profile() {
   const router = useRouter();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
 
-  const [editing, setEditing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [name, setName] = useState(user?.name || "");
-  const [bio, setBio] = useState(user?.bio || "");
-  const [nativeLang, setNativeLang] = useState(user?.native_language || null);
-  const [teachLangs, setTeachLangs] = useState<string[]>(
-    user?.teach_languages || [],
-  );
-  const [learningLangs, setLearningLangs] = useState<string[]>(
-    user?.learning_languages?.length
-      ? user.learning_languages
-      : user?.learning_language
-        ? [user.learning_language]
-        : [],
-  );
-  const [proficiency, setProficiency] = useState(user?.proficiency || null);
-  const [interests, setInterests] = useState<string[]>(user?.interests || []);
-  const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [usernameModal, setUsernameModal] = useState(false);
-  const [usernameDraft, setUsernameDraft] = useState("");
-  const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [usernameBusy, setUsernameBusy] = useState(false);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [momentsCount, setMomentsCount] = useState<number | null>(null);
   const [privacy, setPrivacy] = useState<Record<string, boolean>>(
@@ -126,68 +96,13 @@ export default function Profile() {
     }, [setUser]),
   );
 
-  const syncEditState = useCallback(() => {
-    if (!user) return;
-    setName(user.name || "");
-    setBio(user.bio || "");
-    setNativeLang(user.native_language || null);
-    setTeachLangs(user.teach_languages || []);
-    setLearningLangs(
-      user.learning_languages?.length
-        ? user.learning_languages
-        : user.learning_language
-          ? [user.learning_language]
-          : [],
-    );
-    setProficiency(user.proficiency || null);
-    setInterests(user.interests || []);
-  }, [user]);
-
   if (!user) return null;
 
   const daysMember = user.created_at
     ? Math.max(1, dayjs().diff(dayjs(user.created_at), "day") + 1)
     : 1;
-  const learnCap = user?.is_vip ? 3 : 1;
 
-  const toggleList = (
-    list: string[],
-    set: (v: string[]) => void,
-    code: string,
-    max: number,
-  ) => {
-    if (list.includes(code)) set(list.filter((c) => c !== code));
-    else if (list.length < max) set([...list, code]);
-  };
-
-  const toggleSection = (key: string) => {
-    if (Platform.OS !== "web") {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
-    setExpanded((prev) => (prev === key ? null : key));
-  };
-
-  const toggleLearning = (code: string) => {
-    if (
-      !learningLangs.includes(code) &&
-      learningLangs.length >= learnCap &&
-      !user?.is_vip
-    ) {
-      Alert.alert(
-        "VIP feature",
-        "Free members can pick 1 learning language. Upgrade to VIP to learn up to 3!",
-      );
-      return;
-    }
-    toggleList(learningLangs, setLearningLangs, code, learnCap);
-  };
-
-  const openEdit = () => {
-    syncEditState();
-    setExpanded("about");
-    setEditing(true);
-  };
-
+  const openEdit = () => router.push("/edit-profile");
   const upgradeVip = () => router.push("/market");
 
   const togglePrivacy = async (key: string) => {
@@ -208,26 +123,7 @@ export default function Profile() {
           "I'm learning languages on LinguaConnect — chat with native speakers, get AI translations and make friends worldwide. Join me!",
       });
     } catch {
-      // user dismissed
-    }
-  };
-
-  const saveUsername = async () => {
-    if (usernameBusy) return;
-    setUsernameBusy(true);
-    setUsernameError(null);
-    try {
-      const updated = await api.put<User>("/users/me/username", {
-        username: usernameDraft.trim().toLowerCase(),
-      });
-      setUser(updated);
-      setUsernameModal(false);
-    } catch (e) {
-      setUsernameError(
-        e instanceof Error ? e.message : "Could not change username",
-      );
-    } finally {
-      setUsernameBusy(false);
+      // dismissed
     }
   };
 
@@ -277,28 +173,6 @@ export default function Profile() {
     }
   };
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      const updated = await api.put<User>("/users/me", {
-        name: name.trim() || user.name,
-        bio,
-        native_language: nativeLang,
-        teach_languages: teachLangs.filter((c) => c !== nativeLang),
-        learning_languages: learningLangs,
-        learning_language: learningLangs[0] || null,
-        proficiency,
-        interests,
-      });
-      setUser(updated);
-      setEditing(false);
-    } catch {
-      // stay in edit modal for retry
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const doLogout = async () => {
     setSettingsOpen(false);
     await logout();
@@ -330,11 +204,7 @@ export default function Profile() {
           <Text style={styles.coinCount}>{user.coins ?? 0}</Text>
         </Pressable>
         <View style={styles.topActions}>
-          <Pressable
-            testID="share-btn"
-            style={styles.iconBtn}
-            onPress={onShare}
-          >
+          <Pressable testID="share-btn" style={styles.iconBtn} onPress={onShare}>
             <Ionicons name="share-outline" size={20} color={colors.onSurface} />
           </Pressable>
           <Pressable
@@ -351,7 +221,6 @@ export default function Profile() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Green promo banner */}
         {!user.is_vip && (
           <Pressable testID="promo-banner" onPress={upgradeVip}>
             <LinearGradient
@@ -405,19 +274,15 @@ export default function Profile() {
               <GenderBadge gender={user.gender} />
               {user.is_vip && <VipBadge tier={user.vip_tier} />}
             </View>
-            <Pressable
-              testID="username-row"
-              style={styles.usernamePill}
-              onPress={() => {
-                setUsernameDraft(user.username || "");
-                setUsernameError(null);
-                setUsernameModal(true);
-              }}
-            >
+            <Pressable testID="username-row" style={styles.usernamePill} onPress={openEdit}>
               <Text style={styles.usernameText}>
                 @{user.username || "set username"}
               </Text>
-              <Ionicons name="copy-outline" size={11} color={colors.onSurfaceSecondary} />
+              <Ionicons
+                name="copy-outline"
+                size={11}
+                color={colors.onSurfaceSecondary}
+              />
             </Pressable>
             <View style={styles.followRow}>
               <Pressable
@@ -445,7 +310,7 @@ export default function Profile() {
           />
         </Pressable>
 
-        {/* Streak + Visitors cards */}
+        {/* Streak + Visitors */}
         <View style={styles.duoRow}>
           <View style={styles.duoCard} testID="profile-streak-stat">
             <Ionicons name="flame" size={26} color={colors.warning} />
@@ -562,31 +427,11 @@ export default function Profile() {
           </View>
           <View style={styles.lpStatsRow}>
             {[
-              {
-                icon: "flame" as IconName,
-                color: colors.warning,
-                value: user.streak_count ?? 0,
-              },
-              {
-                icon: "planet" as IconName,
-                color: "#8B5CF6",
-                value: momentsCount ?? 0,
-              },
-              {
-                icon: "people" as IconName,
-                color: colors.brand,
-                value: social?.followers ?? 0,
-              },
-              {
-                icon: "person-add" as IconName,
-                color: colors.success,
-                value: social?.following ?? 0,
-              },
-              {
-                icon: "eye" as IconName,
-                color: colors.error,
-                value: visitorCount ?? 0,
-              },
+              { icon: "flame" as IconName, color: colors.warning, value: user.streak_count ?? 0 },
+              { icon: "planet" as IconName, color: "#8B5CF6", value: momentsCount ?? 0 },
+              { icon: "people" as IconName, color: colors.brand, value: social?.followers ?? 0 },
+              { icon: "person-add" as IconName, color: colors.success, value: social?.following ?? 0 },
+              { icon: "eye" as IconName, color: colors.error, value: visitorCount ?? 0 },
             ].map((s, i) => (
               <View key={i} style={styles.lpStatCell}>
                 <Ionicons name={s.icon} size={20} color={s.color} />
@@ -629,274 +474,6 @@ export default function Profile() {
           <Text style={styles.howText}>Settings & Privacy</Text>
         </Pressable>
       </ScrollView>
-
-      {/* ── Edit Profile Modal ── */}
-      <Modal
-        visible={editing}
-        animationType="slide"
-        onRequestClose={() => setEditing(false)}
-      >
-        <SafeAreaView style={styles.modalScreen} edges={["top"]}>
-          <View style={styles.modalHeader}>
-            <Pressable
-              testID="edit-close-btn"
-              onPress={() => setEditing(false)}
-              style={styles.iconBtn}
-            >
-              <Ionicons name="close" size={24} color={colors.onSurface} />
-            </Pressable>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Pressable
-              testID="profile-save-btn"
-              onPress={save}
-              disabled={saving}
-              style={styles.editSaveBtn}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color={colors.onBrand} />
-              ) : (
-                <Text style={styles.editSaveText}>Save</Text>
-              )}
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={styles.scroll}>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Name</Text>
-              <TextInput
-                testID="profile-name-input"
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your name"
-                placeholderTextColor={colors.onSurfaceSecondary}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About me</Text>
-              <TextInput
-                testID="profile-bio-input"
-                style={[styles.input, styles.bioInput]}
-                value={bio}
-                onChangeText={setBio}
-                placeholder="Tell partners about yourself..."
-                placeholderTextColor={colors.onSurfaceSecondary}
-                multiline
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                Interests ({interests.length}/{MAX_INTERESTS})
-              </Text>
-              <View style={styles.chipWrap}>
-                {INTERESTS.map((i) => {
-                  const active = interests.includes(i);
-                  return (
-                    <Pressable
-                      key={i}
-                      testID={`profile-interest-${i.toLowerCase().replace(/\s/g, "-")}`}
-                      onPress={() =>
-                        toggleList(interests, setInterests, i, MAX_INTERESTS)
-                      }
-                      style={[styles.chip, active && styles.chipActive]}
-                    >
-                      <Text
-                        style={[styles.chipText, active && styles.chipTextActive]}
-                      >
-                        {i}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Pressable
-                testID="collapse-native"
-                style={styles.collapseHeader}
-                onPress={() => toggleSection("native")}
-              >
-                <Text style={styles.sectionTitle}>Native language</Text>
-                <View style={styles.collapseRight}>
-                  {nativeLang ? <FlagIcon code={nativeLang} size={16} /> : null}
-                  <Ionicons
-                    name={expanded === "native" ? "chevron-up" : "chevron-down"}
-                    size={16}
-                    color={colors.onSurfaceSecondary}
-                  />
-                </View>
-              </Pressable>
-              {expanded === "native" && (
-                <View style={styles.chipWrap}>
-                  {LANGUAGES.map((lang) => {
-                    const active = nativeLang === lang.code;
-                    return (
-                      <Pressable
-                        key={lang.code}
-                        testID={`profile-native-${lang.code}`}
-                        onPress={() => {
-                          setNativeLang(lang.code);
-                          setTeachLangs((prev) =>
-                            prev.filter((c) => c !== lang.code),
-                          );
-                          setLearningLangs((prev) =>
-                            prev.filter((c) => c !== lang.code),
-                          );
-                        }}
-                        style={[styles.chip, active && styles.chipActive]}
-                      >
-                        <FlagIcon code={lang.code} size={14} />
-                        <Text
-                          style={[
-                            styles.chipText,
-                            active && styles.chipTextActive,
-                          ]}
-                        >
-                          {lang.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Pressable
-                testID="collapse-teach"
-                style={styles.collapseHeader}
-                onPress={() => toggleSection("teach")}
-              >
-                <Text style={styles.sectionTitle}>
-                  I can also teach ({teachLangs.length}/2)
-                </Text>
-                <View style={styles.collapseRight}>
-                  {teachLangs.map((c) => (
-                    <FlagIcon key={c} code={c} size={16} />
-                  ))}
-                  <Ionicons
-                    name={expanded === "teach" ? "chevron-up" : "chevron-down"}
-                    size={16}
-                    color={colors.onSurfaceSecondary}
-                  />
-                </View>
-              </Pressable>
-              {expanded === "teach" && !user.is_vip && (
-                <Text style={styles.bodyText}>
-                  💎 VIP members can teach up to 2 extra languages. Upgrade to
-                  unlock!
-                </Text>
-              )}
-              {expanded === "teach" && user.is_vip && (
-                <View style={styles.chipWrap}>
-                  {LANGUAGES.filter((l) => l.code !== nativeLang).map((lang) => {
-                    const active = teachLangs.includes(lang.code);
-                    return (
-                      <Pressable
-                        key={lang.code}
-                        testID={`profile-teach-${lang.code}`}
-                        onPress={() => {
-                          toggleList(teachLangs, setTeachLangs, lang.code, 2);
-                          setLearningLangs((prev) =>
-                            prev.filter((c) => c !== lang.code),
-                          );
-                        }}
-                        style={[styles.chip, active && styles.chipActive]}
-                      >
-                        <FlagIcon code={lang.code} size={14} />
-                        <Text
-                          style={[
-                            styles.chipText,
-                            active && styles.chipTextActive,
-                          ]}
-                        >
-                          {lang.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Pressable
-                testID="collapse-learning"
-                style={styles.collapseHeader}
-                onPress={() => toggleSection("learning")}
-              >
-                <Text style={styles.sectionTitle}>
-                  Learning languages ({learningLangs.length}/{learnCap})
-                </Text>
-                <View style={styles.collapseRight}>
-                  {learningLangs.map((c) => (
-                    <FlagIcon key={c} code={c} size={16} />
-                  ))}
-                  <Ionicons
-                    name={
-                      expanded === "learning" ? "chevron-up" : "chevron-down"
-                    }
-                    size={16}
-                    color={colors.onSurfaceSecondary}
-                  />
-                </View>
-              </Pressable>
-              {expanded === "learning" && (
-                <View style={styles.chipWrap}>
-                  {LANGUAGES.filter(
-                    (l) => l.code !== nativeLang && !teachLangs.includes(l.code),
-                  ).map((lang) => {
-                    const active = learningLangs.includes(lang.code);
-                    return (
-                      <Pressable
-                        key={lang.code}
-                        testID={`profile-learning-${lang.code}`}
-                        onPress={() => toggleLearning(lang.code)}
-                        style={[styles.chip, active && styles.chipActive]}
-                      >
-                        <FlagIcon code={lang.code} size={14} />
-                        <Text
-                          style={[
-                            styles.chipText,
-                            active && styles.chipTextActive,
-                          ]}
-                        >
-                          {lang.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Level</Text>
-              <View style={styles.chipWrap}>
-                {PROFICIENCY_LEVELS.map((level) => {
-                  const active = proficiency === level;
-                  return (
-                    <Pressable
-                      key={level}
-                      testID={`profile-level-${level.toLowerCase()}`}
-                      onPress={() => setProficiency(level)}
-                      style={[styles.chip, active && styles.chipActive]}
-                    >
-                      <Text
-                        style={[styles.chipText, active && styles.chipTextActive]}
-                      >
-                        {level}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
 
       {/* ── Settings Modal ── */}
       <Modal
@@ -976,27 +553,11 @@ export default function Profile() {
             <View style={styles.section}>
               {(
                 [
-                  {
-                    key: "show_online",
-                    label: "Show online status",
-                    icon: "radio-button-on",
-                  },
+                  { key: "show_online", label: "Show online status", icon: "radio-button-on" },
                   { key: "show_age", label: "Show my age", icon: "calendar" },
-                  {
-                    key: "show_gender",
-                    label: "Show my gender",
-                    icon: "male-female",
-                  },
-                  {
-                    key: "show_country",
-                    label: "Show my country & flag",
-                    icon: "flag",
-                  },
-                  {
-                    key: "show_interests",
-                    label: "Show my interests",
-                    icon: "heart",
-                  },
+                  { key: "show_gender", label: "Show my gender", icon: "male-female" },
+                  { key: "show_country", label: "Show my country & flag", icon: "flag" },
+                  { key: "show_interests", label: "Show my interests", icon: "heart" },
                 ] as const
               ).map((opt, idx, arr) => {
                 const on = privacy[opt.key] ?? true;
@@ -1008,32 +569,24 @@ export default function Profile() {
                       onPress={() => togglePrivacy(opt.key)}
                     >
                       <View style={styles.settingIcon}>
-                        <Ionicons
-                          name={opt.icon}
-                          size={16}
-                          color={colors.brand}
-                        />
+                        <Ionicons name={opt.icon} size={16} color={colors.brand} />
                       </View>
                       <Text style={[styles.settingTitle, { flex: 1 }]}>
                         {opt.label}
                       </Text>
-                      <View
-                        style={[styles.toggleTrack, on && styles.toggleTrackOn]}
-                      >
+                      <View style={[styles.toggleTrack, on && styles.toggleTrackOn]}>
                         <View
                           style={[styles.toggleThumb, on && styles.toggleThumbOn]}
                         />
                       </View>
                     </Pressable>
-                    {idx < arr.length - 1 && (
-                      <View style={styles.settingDivider} />
-                    )}
+                    {idx < arr.length - 1 && <View style={styles.settingDivider} />}
                   </React.Fragment>
                 );
               })}
             </View>
 
-            <Text style={styles.groupLabel}>Languages</Text>
+            <Text style={styles.groupLabel}>Profile</Text>
             <View style={styles.section}>
               <View style={styles.settingRow}>
                 <View style={styles.settingIcon}>
@@ -1098,70 +651,12 @@ export default function Profile() {
               </View>
             </View>
 
-            <Pressable
-              testID="logout-btn"
-              style={styles.logoutBtn}
-              onPress={doLogout}
-            >
+            <Pressable testID="logout-btn" style={styles.logoutBtn} onPress={doLogout}>
               <Ionicons name="log-out-outline" size={20} color={colors.error} />
               <Text style={styles.logoutText}>Log Out</Text>
             </Pressable>
           </ScrollView>
         </SafeAreaView>
-      </Modal>
-
-      {/* ── Username Modal ── */}
-      <Modal
-        visible={usernameModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setUsernameModal(false)}
-      >
-        <View style={styles.unBackdrop}>
-          <View style={styles.unCard}>
-            <Text style={styles.unTitle}>Change username</Text>
-            <Text style={styles.unSub}>
-              Your unique ID. Can be changed once a month. 3–20 characters:
-              lowercase letters, numbers, _ or .
-            </Text>
-            <TextInput
-              testID="username-input"
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={usernameDraft}
-              onChangeText={setUsernameDraft}
-              placeholder="username"
-              placeholderTextColor={colors.onSurfaceSecondary}
-            />
-            {usernameError ? (
-              <Text style={styles.unError} testID="username-error">
-                {usernameError}
-              </Text>
-            ) : null}
-            <View style={{ flexDirection: "row", gap: spacing.md }}>
-              <Pressable
-                testID="username-cancel-btn"
-                style={styles.unCancel}
-                onPress={() => setUsernameModal(false)}
-              >
-                <Text style={styles.unCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                testID="username-save-btn"
-                style={styles.unSave}
-                onPress={saveUsername}
-                disabled={usernameBusy}
-              >
-                {usernameBusy ? (
-                  <ActivityIndicator size="small" color={colors.onBrand} />
-                ) : (
-                  <Text style={styles.unSaveText}>Save</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1583,7 +1078,6 @@ const makeStyles = (colors: ThemeColors) =>
       color: colors.onSurfaceSecondary,
       textDecorationLine: "underline",
     },
-    // Modals (edit / settings)
     modalScreen: {
       flex: 1,
       backgroundColor: colors.surfaceSecondary,
@@ -1602,82 +1096,6 @@ const makeStyles = (colors: ThemeColors) =>
       fontFamily: fonts.display,
       fontSize: 18,
       color: colors.onSurface,
-    },
-    editSaveBtn: {
-      minWidth: 56,
-      alignItems: "center",
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.pill,
-      backgroundColor: colors.brand,
-    },
-    editSaveText: {
-      fontFamily: fonts.textBold,
-      fontSize: 14,
-      color: colors.onBrand,
-    },
-    sectionTitle: {
-      fontFamily: fonts.textBold,
-      fontSize: 13,
-      color: colors.onSurfaceSecondary,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-    },
-    bodyText: {
-      fontFamily: fonts.text,
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.onSurface,
-    },
-    input: {
-      backgroundColor: colors.surfaceSecondary,
-      borderRadius: radius.sm,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      fontFamily: fonts.text,
-      fontSize: 15,
-      color: colors.onSurface,
-    },
-    bioInput: {
-      minHeight: 80,
-      textAlignVertical: "top",
-    },
-    chipWrap: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: spacing.sm,
-    },
-    chip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.pill,
-      backgroundColor: colors.surfaceSecondary,
-    },
-    chipActive: {
-      backgroundColor: colors.brandTertiary,
-    },
-    chipText: {
-      fontFamily: fonts.textSemi,
-      fontSize: 13,
-      color: colors.onSurfaceTertiary,
-    },
-    chipTextActive: {
-      color: colors.onBrandTertiary,
-      fontFamily: fonts.textBold,
-    },
-    collapseHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      minHeight: 28,
-    },
-    collapseRight: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
     },
     settingRow: {
       flexDirection: "row",
@@ -1761,60 +1179,5 @@ const makeStyles = (colors: ThemeColors) =>
       fontFamily: fonts.textBold,
       fontSize: 15,
       color: colors.error,
-    },
-    unBackdrop: {
-      flex: 1,
-      backgroundColor: "rgba(15, 23, 42, 0.5)",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: spacing.xl,
-    },
-    unCard: {
-      width: "100%",
-      maxWidth: 360,
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      padding: spacing.xl,
-      gap: spacing.md,
-    },
-    unTitle: {
-      fontFamily: fonts.display,
-      fontSize: 19,
-      color: colors.onSurface,
-    },
-    unSub: {
-      fontFamily: fonts.text,
-      fontSize: 12,
-      lineHeight: 17,
-      color: colors.onSurfaceSecondary,
-    },
-    unError: {
-      fontFamily: fonts.textSemi,
-      fontSize: 12,
-      color: colors.error,
-    },
-    unCancel: {
-      flex: 1,
-      borderRadius: radius.pill,
-      paddingVertical: spacing.md,
-      alignItems: "center",
-      backgroundColor: colors.surfaceSecondary,
-    },
-    unCancelText: {
-      fontFamily: fonts.textBold,
-      fontSize: 14,
-      color: colors.onSurfaceSecondary,
-    },
-    unSave: {
-      flex: 1,
-      borderRadius: radius.pill,
-      paddingVertical: spacing.md,
-      alignItems: "center",
-      backgroundColor: colors.brand,
-    },
-    unSaveText: {
-      fontFamily: fonts.textBold,
-      fontSize: 14,
-      color: colors.onBrand,
     },
   });

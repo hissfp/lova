@@ -29,6 +29,15 @@ class UserUpdate(BaseModel):
     interests: Optional[list[str]] = Field(default=None, max_length=20)
     gender: Optional[str] = Field(default=None, pattern="^(male|female)$")
     privacy: Optional[dict] = None
+    # Extended HelloTalk-style profile fields (all optional)
+    places_to_go: Optional[str] = Field(default=None, max_length=120)
+    mbti: Optional[str] = Field(default=None, max_length=8)
+    blood_type: Optional[str] = Field(default=None, max_length=4)
+    hometown: Optional[str] = Field(default=None, max_length=80)
+    occupation: Optional[str] = Field(default=None, max_length=80)
+    school: Optional[str] = Field(default=None, max_length=80)
+    birthday: Optional[str] = Field(default=None, max_length=10)
+    cover_url: Optional[str] = None
 
 
 class AvatarUpload(BaseModel):
@@ -163,6 +172,14 @@ def user_public(doc: dict) -> dict:
         "blocked_users": doc.get("blocked_users") or [],
         "streak_count": doc.get("streak_count", 0),
         "created_at": doc.get("created_at"),
+        "places_to_go": doc.get("places_to_go"),
+        "mbti": doc.get("mbti"),
+        "blood_type": doc.get("blood_type"),
+        "hometown": doc.get("hometown"),
+        "occupation": doc.get("occupation"),
+        "school": doc.get("school"),
+        "birthday": doc.get("birthday"),
+        "cover_url": doc.get("cover_url"),
     }
 
 

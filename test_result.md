@@ -101,3 +101,70 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Test Run — Profile Redesign (backend changes)
+user_problem_statement: Redesigned Me/Edit/Other-user profile screens (HelloTalk style). Backend additions to support them.
+
+backend:
+  - task: "GET /api/moments/mine/count and /api/moments/user/{id}/count"
+    implemented: true
+    working: true
+    file: "backend/routes/moments.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "New endpoints return {count} of moments for self / a given user. Auth required."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: GET /api/moments/mine/count with auth returns {count:0}, GET /api/moments/user/star-demo-id-207/count with auth returns {count:0}, GET /api/moments/mine/count without auth correctly returns 401. All tests passed."
+  - task: "Extended profile fields via PUT /api/users/me (mbti, blood_type, hometown, occupation, school, places_to_go, birthday, cover_url) + gender now editable"
+    implemented: true
+    working: true
+    file: "backend/routes/users.py, backend/models.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "UserUpdate + user_public extended. Gender lock removed (editable). Verified via curl."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: PUT /api/users/me successfully updates all extended fields (mbti:ENTP, blood_type:AB, hometown:Lahore, occupation:Engineer, school:MIT, places_to_go:Japan, birthday:1999-05-10, gender:male). All fields echo correctly in response. GET /api/auth/me confirms persistence. Gender is now editable as expected."
+  - task: "POST /api/users/me/cover (cover image upload, base64)"
+    implemented: true
+    working: true
+    file: "backend/routes/users.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Mirrors avatar upload; stores media and sets cover_url."
+        - working: true
+          agent: "testing"
+          comment: "✅ TESTED: POST /api/users/me/cover with valid base64 PNG returns 200 with cover_url starting with /api/media/. Invalid base64 correctly returns 400. All tests passed."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.3"
+  test_sequence: 2
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Extended profile fields via PUT /api/users/me"
+    - "GET moments count endpoints"
+    - "POST /api/users/me/cover"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: "Please test new backend endpoints. Use existing user fahad@lingua.app / Test1234! (or register a new user). Verify: (1) PUT /api/users/me persists mbti/blood_type/hometown/occupation/school/places_to_go/birthday and returns them; gender is updatable now. (2) GET /api/moments/mine/count and GET /api/moments/user/{id}/count return {count:int} with auth, 401 without. (3) POST /api/users/me/cover accepts {image_base64,mime} and sets cover_url. Do not test frontend."
+    - agent: "testing"
+      message: "✅ ALL BACKEND TESTS PASSED (7/7). Extended profile update working correctly - all fields (mbti, blood_type, hometown, occupation, school, places_to_go, birthday, gender) update and persist. Moments count endpoints return correct format with auth, reject without auth (401). Cover upload accepts valid base64 and rejects invalid (400). No critical issues found. Ready for main agent to summarize and finish."

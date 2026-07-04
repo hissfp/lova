@@ -79,6 +79,14 @@ export interface User {
   streak_count?: number;
   profile_views?: number;
   created_at?: string | null;
+  places_to_go?: string | null;
+  mbti?: string | null;
+  blood_type?: string | null;
+  hometown?: string | null;
+  occupation?: string | null;
+  school?: string | null;
+  birthday?: string | null;
+  cover_url?: string | null;
 }
 
 export interface Visitor extends User {

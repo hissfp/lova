@@ -88,7 +88,7 @@ export default function Profile() {
         )
         .then((d) => {
           setVisitorCount(d.count);
-          setRecentVisitors(d.visitors.slice(0, 3));
+          setRecentVisitors(d.visitors.slice(0, 4));
           setVisitorsLocked(d.vip_required);
         })
         .catch(() => {});
@@ -358,76 +358,49 @@ export default function Profile() {
             style={styles.duoCard}
             onPress={() => router.push("/visitors")}
           >
-            <Ionicons name="eye" size={22} color={colors.brand} />
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.duoValue}>{visitorCount ?? 0}</Text>
               <Text style={styles.duoLabel}>Visitors</Text>
             </View>
+            {visitorsLocked ? (
+              <View style={styles.visitorStack} testID="profile-visitor-stack">
+                {[0, 1, 2].map((i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.visitorAvatarWrap,
+                      { marginLeft: i === 0 ? 0 : -10, zIndex: 4 - i },
+                    ]}
+                  >
+                    <View style={styles.visitorLockedCircle}>
+                      <Ionicons
+                        name="person"
+                        size={12}
+                        color={colors.onSurfaceSecondary}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : recentVisitors.length > 0 ? (
+              <View style={styles.visitorStack} testID="profile-visitor-stack">
+                {recentVisitors.map((v, i) => (
+                  <View
+                    key={v.id}
+                    style={[
+                      styles.visitorAvatarWrap,
+                      { marginLeft: i === 0 ? 0 : -10, zIndex: 4 - i },
+                    ]}
+                  >
+                    <Avatar name={v.name} url={v.avatar_url} size={26} />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Ionicons name="eye" size={22} color={colors.brand} />
+            )}
           </Pressable>
         </View>
-
-        {/* Recent visitors avatar stack */}
-        {(recentVisitors.length > 0 || visitorsLocked) && (
-          <Pressable
-            testID="profile-recent-visitors"
-            style={styles.visitorsCard}
-            onPress={() => router.push("/visitors")}
-          >
-            <View style={styles.visitorsAvatarStack}>
-              {visitorsLocked
-                ? [0, 1, 2].map((i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.visitorAvatarWrap,
-                        { marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i },
-                      ]}
-                    >
-                      <View style={styles.visitorLockedCircle}>
-                        <Ionicons
-                          name="person"
-                          size={14}
-                          color={colors.onSurfaceSecondary}
-                        />
-                      </View>
-                    </View>
-                  ))
-                : recentVisitors.map((v, i) => (
-                    <View
-                      key={v.id}
-                      style={[
-                        styles.visitorAvatarWrap,
-                        { marginLeft: i === 0 ? 0 : -14, zIndex: 3 - i },
-                      ]}
-                    >
-                      <Avatar name={v.name} url={v.avatar_url} size={32} />
-                    </View>
-                  ))}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.visitorsTitle}>
-                {visitorsLocked
-                  ? "Someone viewed your profile"
-                  : `${recentVisitors.length} recent visitor${
-                      recentVisitors.length > 1 ? "s" : ""
-                    }`}
-              </Text>
-              <Text style={styles.visitorsSub} numberOfLines={1}>
-                {visitorsLocked
-                  ? "Upgrade to VIP to see who"
-                  : "Tap to see everyone who visited"}
-              </Text>
-            </View>
-            {visitorsLocked && (
-              <Ionicons name="lock-closed" size={15} color={colors.warning} />
-            )}
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={colors.onSurfaceSecondary}
-            />
-          </Pressable>
-        )}
 
         {/* Moments */}
         <Pressable
@@ -994,42 +967,22 @@ const makeStyles = (colors: ThemeColors) =>
       padding: spacing.lg,
       ...shadow.card,
     },
-    visitorsCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.md,
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      padding: spacing.lg,
-      ...shadow.card,
-    },
-    visitorsAvatarStack: {
+    visitorStack: {
       flexDirection: "row",
       alignItems: "center",
     },
     visitorAvatarWrap: {
-      borderRadius: 18,
+      borderRadius: 15,
       borderWidth: 2,
       borderColor: colors.surface,
     },
     visitorLockedCircle: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
       backgroundColor: colors.surfaceTertiary,
       alignItems: "center",
       justifyContent: "center",
-    },
-    visitorsTitle: {
-      fontFamily: fonts.textBold,
-      fontSize: 14,
-      color: colors.onSurface,
-    },
-    visitorsSub: {
-      fontFamily: fonts.text,
-      fontSize: 12,
-      color: colors.onSurfaceSecondary,
-      marginTop: 1,
     },
     momentsIcon: {
       width: 36,

@@ -225,14 +225,14 @@ backend:
 
 metadata:
   created_by: "main_agent"
-  version: "1.4"
-  test_sequence: 3
+  version: "1.10"
+  test_sequence: 9
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Bottom navbar safe area fix"
-    - "Connect page redesign verification"
+    - "Visitors box with avatar stack"
+    - "Admin dashboard verification"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -254,6 +254,10 @@ agent_communication:
       message: "CRITICAL BUG REPORT: App not opening / fix it so the app can be entered. Root cause found and fixed: leftover orphaned code fragment in /app/frontend/app/room/[id].tsx causing JavaScript syntax error that crashed Metro bundler. This has been removed and bundler now compiles cleanly. Please verify app is fully functional end-to-end: (1) Load app root URL - confirm login/auth screen renders (no blank white screen, no error overlay). (2) Log in with mei@demo.com / Demo1234! - confirm login succeeds and main app (tab bar) loads. (3) Navigate to Connect tab - verify header shows 'Connect' (not 'Find Partners'), no VIP chip visible, only one icon button (filter/options) on right, partner cards with paper-plane icon (not chat-bubble). (4) Navigate to Chat tab - verify header shows 'Chat' (not 'Language Talks'), no hamburger/menu icon on left, no VIP chip, single '+' button with colored circular background on right. (5) Navigate to Profile -> Edit Profile - confirm loads without crashing, check for 'Proficiency' section with dot-based level indicators. (6) From Connect tab or wherever 'Voice Rooms' is accessible, create or join a voice room and confirm room screen loads without white screen or crash (dark purple gradient background, member grid, chat area, bottom controls). Report any console errors seen."
     - agent: "testing"
       message: "✅ CRITICAL BUG FIX VERIFIED - APP FULLY FUNCTIONAL (6/6 verification points passed). Test results with mei@demo.com / Demo1234!: (1) ✅ App loads successfully - welcome screen renders, no blank white screen, no error overlay, Metro bundler compiles cleanly. (2) ✅ Login succeeds - navigated to main app with tab bar visible. (3) ✅ Connect tab verified - header shows 'Connect' (not 'Find Partners'), no VIP chip in header, filter/options icon button on right, partner cards display with paper-plane icon for messaging. Found 5 partner cards (Dada, Didi, Demo User, Emma Wilson, Amélie Laurent). (4) ✅ Chat tab verified - header shows 'Chat' (not 'Language Talks'), no hamburger/menu icon on left, no VIP chip, '+' button with colored circular background on right. (5) ✅ Profile tab loads successfully - user profile displays correctly (Mei Lin, VIP member, 1000 coins, 1 day streak, 0 visitors, 1 moment). Edit Profile page accessible and loads without crashing. Proficiency section present with dot-based level indicators for learning languages. (6) ✅ Voice Room screen verified - clicked on 'Love' voice room, screen loads without white screen or crash. Dark purple gradient background visible, member grid present (Didi on stage, You in audience), chat area with welcome messages and quick replies visible, bottom controls present (hand/mic button, message input, chat/tools/shop/gift icons). No console errors detected. ALL VERIFICATION POINTS PASSED. The 'app not opening' bug is COMPLETELY RESOLVED. App is fully functional end-to-end."
+    - agent: "main"
+      message: "Implemented 2 new features per user request: (1) Profile Visitors box redesign - moved avatar stack (up to 4 overlapping circles, 26px each) INSIDE the Visitors stat card (next to Day Streak card in duo row). Removed the separate 'Recent visitors' unlock card below. VIP users see real avatars, non-VIP see locked person icons, empty shows eye icon. Clicking box navigates to /visitors. Seeded 5 visitors for mei@demo.com (Amélie Laurent, Emma Wilson, Lucas Oliveira, Diego Ramírez, Didi). (2) Admin dashboard verification - pre-existing panel at /admin-x7k2p9 needs testing. Please verify: (A) Login with admin@lingua.app / Admin1234! works. (B) Overview tab shows live stats (total users, moments, messages etc. all > 0). (C) Users tab loads and includes mei@demo.com and other demo users. Test on mobile viewport (390x844). Note: if already logged in as mei, the panel will show 'Access denied' - need to log out first."
+    - agent: "testing"
+      message: "✅ ALL TESTS PASSED (5/5 verification points). Tested on mobile viewport (390x844). TEST 1 - Profile Visitors Box (3/3 passed): VERIFY A ✅ - Visitors box (testid profile-visitors-stat) displays count '5', 'Visitors' label, and avatar stack (testid profile-visitor-stack) with 4 overlapping circular avatars. Mei is VIP so real user avatars shown (colorful, NOT locked person icons). VERIFY B ✅ - Old separate 'recent visitors' card COMPLETELY REMOVED. No testid 'profile-recent-visitors', no text patterns ('recent visitor', 'Tap to see everyone who visited', 'Someone viewed your profile', 'Upgrade to VIP to see who') found. VERIFY C ✅ - Clicking Visitors box navigates to /visitors page showing all 5 expected visitors (Amélie Laurent, Emma Wilson, Lucas Oliveira, Diego Ramírez, Didi). Navigation back works. TEST 2 - Admin Dashboard (2/2 passed): VERIFY A ✅ - Logged out mei, accessed /admin-x7k2p9, admin login form displayed. Logged in with admin@lingua.app / Admin1234! successfully. Overview tab shows live stats: Total users 16, Online now 2, VIP users 7, Moments 7, Messages 31, Live rooms 1, Coins 14470. All stats > 0 confirming live data. VERIFY B ✅ - Users tab loads with user list. Found all demo users (mei@demo.com, diego@demo.com, admin@lingua.app). Total 15 user emails in list. User list populated with real data. Screenshots: test1_profile_page.png, test1_duo_row_closeup.png, test1_visitors_page_full.png, test2_admin_after_logout.png, test2_admin_logged_in.png, test2_overview_stats.png, test2_users_list.png. No console errors. Both features working perfectly."
 
 ## Test Run — Voice Room + Moments Integration Features
 user_problem_statement: Test the new Voice Room + Moments integration features including gift catalog, room creation with moments sharing, room ending, private rooms, gift sending, and chat mute functionality.
@@ -569,6 +573,39 @@ agent_communication:
       message: "Applied fix to Connect partner card tags (frontend/app/(tabs)/connect.tsx): (1) tagRow: changed flexWrap from 'wrap' to 'nowrap', added overflow:'hidden'. (2) tag: added flexShrink:1 to allow tags to shrink. (3) tagText: added numberOfLines=1 and ellipsizeMode='tail' for ellipsis truncation. This ensures all tags stay on ONE horizontal line and long labels truncate with '...' instead of wrapping. Please verify on mobile viewport (390x844) with mei@demo.com / Demo1234!. Check all partner cards (scroll through list) to confirm: (a) all tags on same y-coordinate (single line), (b) long labels show ellipsis, (c) no horizontal overflow."
     - agent: "testing"
       message: "✅ PARTNER CARD TAGS FIX VERIFIED - ALL TESTS PASSED (8 cards, 0 failures). Tested on mobile viewport (390x844) with mei@demo.com. Scrolled through ALL partner cards: Didi, Bhh, Gigi, Didi, Demo User, Emma Wilson, Amélie Laurent, Yuki Tanaka. VERIFICATION RESULTS: (1) ✅ ALL tags on SINGLE horizontal row - measured y-coordinates for all cards with multiple tags show 0.00px difference (perfect alignment). Cards tested: Didi (2 tags, y-diff:0.00px), Bhh (2 tags, y-diff:0.00px), Demo User (2 tags, y-diff:0.00px), Yuki Tanaka (2 tags, y-diff:0.00px). (2) ✅ Long labels truncate with ellipsis - screenshots show 'Loves Fitne...', 'Language exchan...', 'Similar intere...' with proper truncation. (3) ✅ NO wrapping detected - 7 cards with tags all PASSED, 1 card with no tags. (4) ✅ No horizontal overflow outside cards. (5) ✅ No console errors - only minor font loading failures (non-critical) and 'props.pointerEvents is deprecated' warning (non-blocking). Screenshots captured at top/middle/bottom of list as evidence. FIX WORKING PERFECTLY. Ready for main agent to summarize and finish."
+
+## Test Run — User Feedback Round 5 (visitors box with avatar stack + admin dashboard verification)
+user_problem_statement: (1) Me/Profile page - Visitors box (next to Streak box) must show 3-4 circular visitor avatars inside it plus the visit count; tapping opens the full visitors list; the separate lower "unlock" card is removed. (2) Verify admin dashboard at /admin-x7k2p9 works with admin@lingua.app / Admin1234! and reflects live app data.
+
+frontend:
+  - task: "Visitors duo card - avatar stack (up to 4) + count inside, lower unlock card removed"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Visitors box now shows count+label left, overlapping circular avatars (26px, up to 4) right; locked (non-VIP) shows generic person circles; empty shows eye icon. Removed the whole 'Recent visitors avatar stack' Pressable card below (with its 'Upgrade to VIP to see who' unlock UI) and its styles. recentVisitors slice 0..4. Seeded 5 visitors for mei@demo.com."
+        - working: true
+          agent: "testing"
+          comment: "✅ ALL TESTS PASSED (3/3 verification points). Tested on mobile viewport (390x844) with mei@demo.com / Demo1234!. VERIFY A ✅: Visitors box (testid profile-visitors-stat) displays count '5', 'Visitors' label, and avatar stack (testid profile-visitor-stack) with 4 overlapping circular avatars. Mei is VIP so real user avatars are shown (colorful, NOT locked person icons). VERIFY B ✅: Old separate 'recent visitors' card COMPLETELY REMOVED - no testid 'profile-recent-visitors', no text patterns ('recent visitor', 'Tap to see everyone who visited', 'Someone viewed your profile', 'Upgrade to VIP to see who') found anywhere on page. VERIFY C ✅: Clicking Visitors box successfully navigates to /visitors page showing all 5 expected visitors (Amélie Laurent, Emma Wilson, Lucas Oliveira, Diego Ramírez, Didi). Navigation back to profile works. Screenshots captured: test1_profile_page.png, test1_duo_row_closeup.png, test1_visitors_page_full.png. No console errors. Feature working perfectly."
+  - task: "Admin dashboard /admin-x7k2p9 login + live data connection"
+    implemented: true
+    working: true
+    file: "frontend/app/admin-x7k2p9.tsx, backend/routes/admin.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Pre-existing admin panel. Needs verification that admin login works and Overview stats reflect real app data."
+        - working: true
+          agent: "testing"
+          comment: "✅ ALL TESTS PASSED (2/2 verification points). Tested by logging out mei@demo.com, then accessing /admin-x7k2p9 URL directly. VERIFY A ✅: Admin login form (testid admin-login-screen) displayed correctly. Logged in with admin@lingua.app / Admin1234! successfully. Admin dashboard (testid admin-dashboard) loaded. Overview tab (testid admin-overview) shows live stats with all 7 key metrics (Total users: 16, Online now: 2, VIP users: 7, Moments: 7, Messages: 31, Live rooms: 1, Coins in circulation: 14470). All stats > 0 confirming live data connection. VERIFY B ✅: Users tab (testid admin-users) loads successfully with user list. Found all demo users (mei@demo.com, diego@demo.com, admin@lingua.app, Mei Lin, Diego). Total 15 user emails found in list. User list populated with real app data. Screenshots captured: test2_admin_after_logout.png, test2_admin_logged_in.png, test2_overview_stats.png, test2_users_list.png. No console errors. Admin dashboard fully functional with live data."
 
 ## Test Run — User Feedback Round 4 (tags single-line with ellipsis)
 user_problem_statement: User reported tags on Connect partner cards wrap to a second line. They must stay on ONE line; long labels truncate with "..." instead of wrapping.

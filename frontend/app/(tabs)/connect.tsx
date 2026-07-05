@@ -264,6 +264,8 @@ export default function Connect() {
                   ]}
                 >
                   <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                     style={[
                       styles.tagText,
                       t.kind === "new" && styles.tagTextNew,
@@ -648,7 +650,11 @@ const makeStyles = (colors: ThemeColors) =>
     },
     tagRow: {
       flexDirection: "row",
-      flexWrap: "wrap",
+      alignItems: "center",
+      // Single line only — long tags shrink and truncate with "…" instead
+      // of wrapping onto a second row.
+      flexWrap: "nowrap",
+      overflow: "hidden",
       gap: spacing.sm,
       marginTop: 2,
     },
@@ -657,6 +663,7 @@ const makeStyles = (colors: ThemeColors) =>
       borderRadius: radius.sm,
       paddingHorizontal: spacing.sm + 2,
       paddingVertical: 3,
+      flexShrink: 1,
     },
     tagNew: {
       backgroundColor: "#CCFBF1",

@@ -553,11 +553,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Chats page pinned header"
-    - "Connect page pinned header"
-    - "Partner card tags"
-    - "Profile language text"
-    - "Auth redesign"
+    - "Partner card tags single line fix"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -567,6 +563,31 @@ agent_communication:
       message: "Implemented 5 UI changes per user feedback: (1) Chats page - removed collapsible header, shortcuts+search now pinned. (2) Connect page - removed collapsible header, category tabs+language chips now pinned. (3) Connect partner cards - new tag logic guarantees 2-3 varied tags per card (Perfect match, Similar interests, Loves X, etc.). (4) Profile preview - language name labels now use textSemi font for slightly bolder weight. (5) Auth screen - full HelloTalk-style redesign with gradient hero, icon inputs, password eye toggle, gradient CTA button, outlined switch button. All testIDs preserved. Please test all 5 changes on mobile viewport (390x844). Login with mei@demo.com / Demo1234!. A check-in modal may appear after login - close it."
     - agent: "testing"
       message: "✅ ALL 5 UI CHANGES VERIFIED (5/5 passed). TEST 1 - Auth redesign ✅: Login screen shows blue gradient hero with white logo badge (chat icon), 'Welcome back!' title, Email+Password inputs with leading icons, password eye toggle working (show/hide), gradient 'Log In' button, 'New to LinguaConnect?' divider, outlined 'Create an account' button. Signup mode shows Name field, 'Create your account' title, 'Log in instead' button. Empty form validation working. Login successful. TEST 2 - Chats pinned header ✅: Shortcuts row (All Courses, Play, AI Translation, Voiceroom, More) and search bar visible initially. Scrolled 300px down - both REMAIN VISIBLE (pinned). TEST 3 - Connect pinned header ✅: Category tabs (All, Serious Learners, Nearby, City, Gender) and language chips (Best Match, English, Japanese) visible initially. Scrolled down - both REMAIN VISIBLE (pinned). TEST 4 - Partner card tags ✅: Checked 7 cards, ALL show exactly 2 tags. Found 6 unique tag types (Perfect match, Similar age, Similar interests, Loves X, Very active, Language exchange). Tags VARIED across cards. TEST 5 - Profile language text ✅: Language section shows OLD column design (EN code with underline + 'English' below, JA/KO codes with dots + names below). Code confirms langName uses fonts.textSemi (semi-bold). NO CRITICAL ISSUES FOUND. All UI changes working as specified."
+    - agent: "user"
+      message: "User reported tags on Connect partner cards wrap to a second line. They must stay on ONE line; long labels truncate with '...' instead of wrapping."
+    - agent: "main"
+      message: "Applied fix to Connect partner card tags (frontend/app/(tabs)/connect.tsx): (1) tagRow: changed flexWrap from 'wrap' to 'nowrap', added overflow:'hidden'. (2) tag: added flexShrink:1 to allow tags to shrink. (3) tagText: added numberOfLines=1 and ellipsizeMode='tail' for ellipsis truncation. This ensures all tags stay on ONE horizontal line and long labels truncate with '...' instead of wrapping. Please verify on mobile viewport (390x844) with mei@demo.com / Demo1234!. Check all partner cards (scroll through list) to confirm: (a) all tags on same y-coordinate (single line), (b) long labels show ellipsis, (c) no horizontal overflow."
+    - agent: "testing"
+      message: "✅ PARTNER CARD TAGS FIX VERIFIED - ALL TESTS PASSED (8 cards, 0 failures). Tested on mobile viewport (390x844) with mei@demo.com. Scrolled through ALL partner cards: Didi, Bhh, Gigi, Didi, Demo User, Emma Wilson, Amélie Laurent, Yuki Tanaka. VERIFICATION RESULTS: (1) ✅ ALL tags on SINGLE horizontal row - measured y-coordinates for all cards with multiple tags show 0.00px difference (perfect alignment). Cards tested: Didi (2 tags, y-diff:0.00px), Bhh (2 tags, y-diff:0.00px), Demo User (2 tags, y-diff:0.00px), Yuki Tanaka (2 tags, y-diff:0.00px). (2) ✅ Long labels truncate with ellipsis - screenshots show 'Loves Fitne...', 'Language exchan...', 'Similar intere...' with proper truncation. (3) ✅ NO wrapping detected - 7 cards with tags all PASSED, 1 card with no tags. (4) ✅ No horizontal overflow outside cards. (5) ✅ No console errors - only minor font loading failures (non-critical) and 'props.pointerEvents is deprecated' warning (non-blocking). Screenshots captured at top/middle/bottom of list as evidence. FIX WORKING PERFECTLY. Ready for main agent to summarize and finish."
+
+## Test Run — User Feedback Round 4 (tags single-line with ellipsis)
+user_problem_statement: User reported tags on Connect partner cards wrap to a second line. They must stay on ONE line; long labels truncate with "..." instead of wrapping.
+
+frontend:
+  - task: "Connect card tags single line, ellipsis truncation, no wrap"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/connect.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "tagRow flexWrap wrap->nowrap + overflow hidden; tag flexShrink 1; tagText numberOfLines=1 ellipsizeMode=tail."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED (8 cards tested, 7 with tags, 0 failures). Tested on mobile viewport (390x844) with mei@demo.com. Scrolled through ALL partner cards (Didi, Bhh, Gigi, Didi, Demo User, Emma Wilson, Amélie Laurent, Yuki Tanaka). VERIFICATION RESULTS: (1) ✅ ALL tags sit on SINGLE horizontal row - measured y-coordinates show 0.00px difference between tags on same card. (2) ✅ Long labels truncate with ellipsis - observed 'Loves Fitne...', 'Language exchan...', 'Similar intere...' in screenshots. (3) ✅ No wrapping detected - all cards with multiple tags (5 cards) have y-diff: 0.00px. (4) ✅ No horizontal overflow outside cards. (5) ✅ No console errors - only minor font loading failures (non-critical) and 'props.pointerEvents is deprecated' warning (non-blocking). Screenshots captured at top/middle/bottom of list as evidence. FIX WORKING PERFECTLY."
 
 ## Test Run — User Feedback Round 3 (pinned headers, varied tags, bolder lang text, auth redesign)
 user_problem_statement: User asked - (1) Chats & Connect pages - top elements must NOT hide/collapse on scroll, only the lists scroll; (2) Connect partner cards should show 2-3 varied tags (Similar interests etc., not just Similar age); (3) profile preview language texts slightly bolder; (4) redesign Login/Signup HelloTalk-style keeping same elements.
